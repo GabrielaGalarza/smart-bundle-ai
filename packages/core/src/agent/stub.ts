@@ -12,6 +12,30 @@ const FOOTWEAR_COLORS = [
 ]
 const FOOTWEAR_STYLES = ['casual', 'urbano', 'urbana', 'deportivo', 'deportiva', 'running', 'retro', 'clasico', 'clasica', 'skate']
 const unique = (values: string[]): string[] => [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+const QUANTITY_WORDS: Record<string, number> = {
+  un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
+  seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+}
+
+/** Extrae cantidades comerciales pequeñas sin confundir talles ni importes. */
+export function extractQuantity(value: string): number | undefined {
+  const text = normalize(value)
+  const quantityToken = String.raw`(?:un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|[1-9]|10)`
+  const productTerm = String.raw`(?:zapatillas?|pares?|opciones?|modelos?)`
+  const brandTerm = String.raw`(?:adidas|new\s+balance|nike|puma|vans)`
+  const patterns = [
+    new RegExp(String.raw`\b(?<quantity>${quantityToken})\s+(?:[a-z]+\s+){0,2}${productTerm}\b`),
+    new RegExp(String.raw`\b(?:quiero|mostrame|dame|busco|necesito)\s+(?:solo\s+)?(?<quantity>${quantityToken})\s+${brandTerm}\b`),
+    new RegExp(String.raw`\b(?:mejor\s+)?(?:ahora\s+)?(?:quiero|mostrame|dame)\s+(?:solo\s+)?(?<quantity>${quantityToken})\s*$`),
+  ]
+  for (const pattern of patterns) {
+    const token = text.match(pattern)?.groups?.quantity
+    if (!token) continue
+    const quantity = QUANTITY_WORDS[token] ?? Number(token)
+    if (Number.isInteger(quantity) && quantity >= 1 && quantity <= 10) return quantity
+  }
+  return undefined
+}
 
 export function parseLocalizedAmount(value: string, unit = ''): number | null {
   const compact = value.replace(/\s/g, '')
@@ -83,6 +107,7 @@ export class StubIntentParser implements IntentParser {
     // tratamos como presupuesto importes marcados con $, "pesos" o una frase
     // comercial explícita para no confundir, por ejemplo, "talle 38" con $38.
     const maxBudget = extractBudget(text)
+    const quantity = extractQuantity(text)
 
     const excludedTags = captures(text, [/(?:sin|evitar que tenga)\s+([a-z][a-z0-9 -]{1,30})/g])
     const avoidedProducts = captures(text, [
@@ -116,13 +141,14 @@ export class StubIntentParser implements IntentParser {
       : /\b(?:mas\s+)?(?:cara|caro|caras|caros)|\bpremium\b/.test(text) ? 'desc' as const : undefined
     const explicitlySingle = /\b(?:la|una)\s+(?:[a-z]+\s+){0,3}(?:mas\s+)?(?:barata|barato|cara|caro)\b|\bun\s+par\b/.test(text)
     const explicitlyMultiple = /\b(varias|varios|seleccion|coleccion)\b|\b(?:mas\s+)?(?:baratas|baratos|caras|caros)\b/.test(text)
-    const selectionSize = explicitlySingle
+    const selectionSize = quantity === 1 || explicitlySingle
       ? 'single' as const
-      : explicitlyMultiple || (Boolean(maxBudget) && category === footwearCategory) ? 'multiple' as const : undefined
+      : (quantity != null && quantity > 1) || explicitlyMultiple || (Boolean(maxBudget) && category === footwearCategory)
+        ? 'multiple' as const : undefined
     const strategy = /(?:priorizar|priorizo|prefiero)\s+(?:la\s+)?calidad|mayor calidad/.test(text)
       ? 'quality-first'
       : /aprovechar(?: al maximo)?|usar todo|gastar todo|armame varias|comprar varias/.test(text) ||
-          (selectionSize === 'multiple' && Boolean(maxBudget))
+          (selectionSize === 'multiple' && Boolean(maxBudget) && quantity == null)
         ? 'maximize-budget'
         : priceOrder === 'asc' || /gastar lo menos|menor costo/.test(text)
           ? 'lowest-cost'
@@ -139,6 +165,7 @@ export class StubIntentParser implements IntentParser {
       strategy,
       ...(priceOrder ? { priceOrder } : {}),
       ...(selectionSize ? { selectionSize } : {}),
+      ...(quantity ? { quantity } : {}),
     }
   }
 }
@@ -167,7 +194,10 @@ export class StubExplainer implements Explainer {
       ? ` La politica demo aplico un beneficio de $${bundle.pricing.smartBundleDemoBenefit}.`
       : ''
     const strategy = bundle.strategy ? ` Estrategia: ${bundle.strategy}.` : ''
+    const quantityNotice = request.quantity && bundle.items.length < request.quantity
+      ? ` Encontré ${bundle.items.length} de ${request.quantity} opciones compatibles; no encontré otra que respete las condiciones y el presupuesto.`
+      : ''
 
-    return `Armamos tu combo de ${request.category}: ${lines}. Total final: $${bundle.totalPrice}, te quedan $${bundle.leftoverBudget} de margen.${strategy}${complements}${promotion}${uncovered} ${substitutions}`.trim()
+    return `Armamos tu combo de ${request.category}: ${lines}. Total final: $${bundle.totalPrice}, te quedan $${bundle.leftoverBudget} de margen.${quantityNotice}${strategy}${complements}${promotion}${uncovered} ${substitutions}`.trim()
   }
 }

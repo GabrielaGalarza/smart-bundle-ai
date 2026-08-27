@@ -121,6 +121,26 @@ describe('StubIntentParser', () => {
     await expect(parser.parse('quiero la Puma más barata', [...categories, 'zapatillas']))
       .resolves.toMatchObject({ priceOrder: 'asc', selectionSize: 'single', strategy: 'lowest-cost' })
   })
+
+  it.each([
+    ['quiero 3 zapatillas', 3],
+    ['quiero tres zapatillas', 3],
+    ['mostrame dos Nike', 2],
+    ['quiero cuatro pares', 4],
+    ['dame 5 Puma', 5],
+    ['una zapatilla', 1],
+    ['mejor mostrame dos', 2],
+  ])('extrae cantidad exacta: %s', async (message, quantity) => {
+    await expect(parser.parse(message, [...categories, 'zapatillas']))
+      .resolves.toMatchObject({ quantity })
+  })
+
+  it('no confunde talle ni presupuesto con cantidad', async () => {
+    await expect(parser.parse('Talle 38', [...categories, 'zapatillas']))
+      .resolves.not.toHaveProperty('quantity')
+    await expect(parser.parse('Tengo 500 mil para zapatillas', [...categories, 'zapatillas']))
+      .resolves.not.toHaveProperty('quantity')
+  })
 })
 
 describe('StubExplainer', () => {

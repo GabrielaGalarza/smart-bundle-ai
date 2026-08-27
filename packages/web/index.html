@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css?v=lenaldi-store-1">
-  <link rel="stylesheet" href="/store.css?v=lenaldi-store-1">
+  <link rel="stylesheet" href="/styles.css?v=lenaldi-store-2">
+  <link rel="stylesheet" href="/store.css?v=lenaldi-store-2">
 </head>
 <body>
   <div class="promo-bar">Asesoramiento personalizado · Consultá disponibilidad y talles por WhatsApp</div>
@@ -31,16 +31,16 @@
     <p class="lenaldi-footer__note">La disponibilidad y los talles deben confirmarse con la tienda. Smart Bundle AI no afirma una asociación comercial distinta de la integración configurada.</p>
   </footer>
 
-  <button id="agent-launcher" class="agent-launcher" type="button" aria-label="Abrir Smart Bundle AI" aria-haspopup="dialog" aria-controls="agent-drawer"><span class="agent-launcher__icon" aria-hidden="true">✦</span><span><strong>Smart Bundle AI</strong><small>Tu asistente de compra</small></span></button>
+  <button id="agent-launcher" class="agent-launcher" type="button" aria-label="Abrir Smart Bundle AI" aria-haspopup="dialog" aria-controls="agent-drawer"><span class="agent-launcher__icon" aria-hidden="true"><svg class="sba-agent-icon" viewBox="0 0 24 24"><path d="M5 5.5h14v9H9l-4 3v-12Z"/><path d="M9 9.5h6M8 14.5v3h8v-3"/></svg></span><span><strong>Smart Bundle AI</strong><small>Tu asistente de compra</small></span></button>
   <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
   <aside id="agent-drawer" class="agent-drawer" role="dialog" aria-modal="true" aria-labelledby="agent-title" hidden>
     <div class="drawer-head"><div><p class="eyebrow">Smart Bundle AI</p><h2 id="agent-title">Tu agente de compra</h2></div><button id="drawer-close" class="icon-button" type="button" aria-label="Cerrar asistente">×</button></div>
     <p id="drawer-intro" class="drawer-intro">Decime qué zapatillas buscás y cuánto querés gastar. Comparo los datos públicos disponibles.</p>
     <section id="chat-thread" class="chat-thread" role="log" aria-live="polite" aria-label="Conversación con el agente de compra">
-      <article class="chat-message chat-message--assistant chat-welcome"><span class="chat-avatar" aria-hidden="true">AI</span><div class="chat-bubble"><strong>¡Hola! Soy tu agente de compra.</strong><p>Contame qué modelo, marca o estilo buscás y tu presupuesto.</p><div class="prompt-suggestions" aria-label="Ejemplos de consulta"><button type="button" data-chat-prompt="Tengo hasta $80.000 y quiero unas Nike claras para uso diario">Nike hasta $80.000</button><button type="button" data-chat-prompt="Busco unas Adidas negras y tengo $75.000">Adidas hasta $75.000</button></div></div></article>
-      <div id="typing-indicator" class="chat-message chat-message--assistant" hidden><span class="chat-avatar" aria-hidden="true">AI</span><div class="chat-bubble chat-typing" aria-label="El agente está analizando"><span></span><span></span><span></span></div></div>
-      <section id="result" class="bundle-result chat-message chat-message--assistant" hidden aria-live="polite"><span class="chat-avatar" aria-hidden="true">AI</span><div class="chat-bubble chat-bubble--result">
-        <div class="result-heading"><h3>Encontré esta opción para vos</h3><div class="result-identifiers"><span id="engine-badge"></span><span id="recommendation-id"></span></div></div>
+      <article class="chat-message chat-message--assistant chat-welcome"><span class="chat-avatar" aria-hidden="true"><svg class="sba-agent-icon" viewBox="0 0 24 24"><path d="M5 5.5h14v9H9l-4 3v-12Z"/><path d="M9 9.5h6M8 14.5v3h8v-3"/></svg></span><div class="chat-bubble"><strong>¡Hola! Soy tu agente de compra.</strong><p>Contame qué modelo, marca o estilo buscás y tu presupuesto.</p><div class="prompt-suggestions" aria-label="Ejemplos de consulta"><button type="button" data-chat-prompt="Tengo hasta $80.000 y quiero unas Nike claras para uso diario">Nike hasta $80.000</button><button type="button" data-chat-prompt="Busco unas Adidas negras y tengo $75.000">Adidas hasta $75.000</button></div></div></article>
+      <div id="typing-indicator" class="chat-message chat-message--assistant" hidden><span class="chat-avatar" aria-hidden="true"><svg class="sba-agent-icon" viewBox="0 0 24 24"><path d="M5 5.5h14v9H9l-4 3v-12Z"/><path d="M9 9.5h6M8 14.5v3h8v-3"/></svg></span><div class="chat-bubble chat-typing" aria-label="El agente está analizando"><span></span><span></span><span></span></div></div>
+      <section id="result" class="bundle-result chat-message chat-message--assistant" hidden aria-live="polite"><span class="chat-avatar" aria-hidden="true"><svg class="sba-agent-icon" viewBox="0 0 24 24"><path d="M5 5.5h14v9H9l-4 3v-12Z"/><path d="M9 9.5h6M8 14.5v3h8v-3"/></svg></span><div class="chat-bubble chat-bubble--result">
+        <div class="result-heading"><h3>Encontré esta opción para vos</h3><div class="result-identifiers"><span id="engine-badge" hidden></span><span id="recommendation-id"></span></div></div>
         <p id="understood" class="understood"></p><p id="explanation" class="explanation"></p><p id="strategy-notice" class="strategy-notice" hidden></p><div id="personalization" class="personalization"></div><ul id="items" class="bundle-items"></ul><div id="price-alternatives" class="price-alternatives" hidden></div><div id="subs"></div><dl id="pricing-breakdown" class="pricing-breakdown"></dl><div class="budget-track"><span id="budget-fill"></span></div><div class="total-row"><strong id="total-label"></strong><span id="leftover-label"></span></div><p id="policy-result" class="policy-result"></p>
         <button id="accept-recommendation" class="accept-recommendation" type="button">Quiero este</button>
         <div class="decision-actions" aria-label="Reoptimizar recomendación"><button type="button" data-strategy="lowest-cost">Más económico</button><button type="button" data-strategy="balanced" data-alternative="true">Otra alternativa</button><button type="button" data-strategy="quality-first">Priorizar calidad</button><button type="button" data-strategy="maximize-budget">Aprovechar presupuesto</button><button type="button" data-strategy="balanced">Equilibrado</button><button type="button" data-compose-preference="true">Cambiar preferencia</button></div>
@@ -52,6 +52,6 @@
     <p class="chat-hint">Podés repreguntar “más económico”, “otra marca” o usar las acciones rápidas.</p>
     <details id="manual-config" class="manual-panel"><summary>Prefiero configurar manualmente</summary><div class="manual-panel__content"><form id="bundle-form"><label for="bundle-category">Categoría</label><select id="bundle-category" required></select><label for="budget-number">Presupuesto máximo</label><div class="money-input"><span>$</span><input id="budget-number" type="number" min="10000" step="1000" value="80000" required><small>ARS</small></div><label for="required-product">Producto <span>(opcional)</span></label><input id="required-product" type="text" placeholder="Ej: Nike Dunk"><label for="preferences">Preferencias <span>(opcional)</span></label><input id="preferences" type="text" placeholder="Ej: claras, casual, uso diario"><p id="form-hint" class="form-hint">Podés indicar marca, color, modelo, presupuesto, estilo o uso.</p><button id="submit-btn" class="primary-action primary-action--full" type="submit"><span class="btn-label">Aplicar configuración</span><span class="spinner" aria-hidden="true"></span></button></form></div></details>
   </aside>
-  <script src="/config.js"></script><script src="/store.js?v=lenaldi-store-1"></script><script src="/app.js?v=lenaldi-store-1"></script>
+  <script src="/config.js"></script><script src="/store.js?v=lenaldi-store-2"></script><script src="/app.js?v=lenaldi-store-2"></script>
 </body>
 </html>

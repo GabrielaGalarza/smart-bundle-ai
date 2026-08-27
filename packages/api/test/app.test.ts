@@ -85,6 +85,14 @@ describe('GET /catalog-image', () => {
 })
 
 describe('CORS', () => {
+  it('permite siempre el frontend oficial de producción', async () => {
+    const res = await fetch(`${baseUrl}/health`, {
+      headers: { Origin: 'https://smart-bundle-ai-ten.vercel.app' },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('access-control-allow-origin')).toBe('https://smart-bundle-ai-ten.vercel.app')
+  })
+
   it('permite el frontend configurado y responde el preflight', async () => {
     const res = await fetch(`${baseUrl}/health`, {
       method: 'OPTIONS',

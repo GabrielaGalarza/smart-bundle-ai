@@ -101,6 +101,7 @@ const catalogMetadata = (catalog: Awaited<ReturnType<CatalogAdapter['getCatalog'
 const WEB_DIRECTORY = fileURLToPath(new URL('../../web', import.meta.url))
 const MAX_CATALOG_IMAGE_BYTES = 5 * 1024 * 1024
 const MAX_CACHED_CATALOG_IMAGES = 100
+const OFFICIAL_FRONTEND_ORIGIN = 'https://smart-bundle-ai-ten.vercel.app'
 
 interface CatalogImageRequest {
   imageUrl: URL
@@ -140,10 +141,10 @@ function isLocalDevelopmentOrigin(origin: string): boolean {
 }
 
 function configuredFrontendOrigins(value: string | undefined): Set<string> {
-  return new Set((value ?? '')
+  return new Set([OFFICIAL_FRONTEND_ORIGIN, ...(value ?? '')
     .split(',')
     .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean))
+    .filter(Boolean)])
 }
 
 export function buildApp(
@@ -396,6 +397,9 @@ export function buildApp(
     }
     const explicitCategory = typeof body.category === 'string' ? body.category : null
     const explicitBudget = typeof body.maxBudget === 'number' ? body.maxBudget : null
+    const explicitQuantity = typeof body.quantity === 'number' && Number.isInteger(body.quantity) && body.quantity >= 1 && body.quantity <= 10
+      ? body.quantity
+      : undefined
     const legacyPreferences = stringList(body.preferences)
     const explicitRequiredProducts = stringList(body.requiredProducts)
     const explicitPreferredTags = stringList(body.preferredTags)
@@ -429,9 +433,11 @@ export function buildApp(
       preferredTags: explicitPreferredTags,
       exclusions: explicitExcludedTags,
       strategy: explicitStrategy,
+      quantity: explicitQuantity,
     })
 
-    const category = session.state.category ?? null
+    const category = session.state.category ?? (categories.length === 1 ? categories[0] : null)
+    if (category && !session.state.category) session.state.category = category
     const maxBudget = session.state.budget ?? null
     const requiredProducts = session.state.requiredProducts ?? []
     const preferredTags = session.state.softPreferences
@@ -439,6 +445,7 @@ export function buildApp(
     const strategy = session.state.strategy ?? 'balanced'
     const priceOrder = session.state.priceOrder
     const selectionSize = session.state.selectionSize
+    const quantity = session.state.quantity
     if (action === 'alternative-requested' || action === 'recommendation-rejected') {
       avoidedProducts = [...new Set([
         ...avoidedProducts,
@@ -487,7 +494,7 @@ export function buildApp(
       priceOrder === 'desc'
         ? right.price - left.price || left.id.localeCompare(right.id)
         : left.price - right.price || left.id.localeCompare(right.id))
-    const relativeSelection = rankedForRelativePrice.slice(0, selectionSize === 'multiple' ? 5 : 1)
+    const relativeSelection = rankedForRelativePrice.slice(0, quantity ?? (selectionSize === 'multiple' ? 5 : 1))
     const relativeBudget = relativeSelection.reduce((sum, product) => sum + product.price, 0)
     let priceSearch: ReturnType<typeof findClosestPriceCandidates> | undefined
     let commercialResponse: ReturnType<typeof commercialPriceResponse> | undefined
@@ -524,6 +531,7 @@ export function buildApp(
       strategy,
       priceOrder,
       selectionSize,
+      quantity,
       priceIntent: session.state.priceIntent,
     }
     const affordableBrandProducts = validBrandProducts.filter((product) => product.price <= effectiveMaxBudget)

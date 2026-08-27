@@ -99,6 +99,7 @@ const INTENT_SCHEMA = {
   properties: {
     category: { type: 'STRING', nullable: true },
     maxBudget: { type: 'NUMBER', nullable: true },
+    quantity: { type: 'NUMBER', nullable: true },
     requiredProducts: { type: 'ARRAY', items: { type: 'STRING' } },
     preferredTags: { type: 'ARRAY', items: { type: 'STRING' } },
     excludedTags: { type: 'ARRAY', items: { type: 'STRING' } },
@@ -109,7 +110,7 @@ const INTENT_SCHEMA = {
       enum: ['lowest-cost', 'balanced', 'quality-first', 'maximize-budget'],
     },
   },
-  required: ['category', 'maxBudget', 'requiredProducts', 'preferredTags', 'excludedTags', 'avoidedProducts', 'strategy'],
+  required: ['category', 'maxBudget', 'quantity', 'requiredProducts', 'preferredTags', 'excludedTags', 'avoidedProducts', 'strategy'],
 }
 
 export class GeminiIntentParser implements IntentParser {
@@ -129,6 +130,9 @@ export class GeminiIntentParser implements IntentParser {
     const maxBudget = typeof input.maxBudget === 'number' && Number.isFinite(input.maxBudget) && input.maxBudget > 0
       ? input.maxBudget
       : null
+    const quantity = typeof input.quantity === 'number' && Number.isInteger(input.quantity) && input.quantity >= 1 && input.quantity <= 10
+      ? input.quantity
+      : undefined
     return {
       category,
       maxBudget,
@@ -140,6 +144,7 @@ export class GeminiIntentParser implements IntentParser {
       strategy: typeof input.strategy === 'string' && STRATEGIES.has(input.strategy as PurchaseStrategy)
         ? input.strategy as PurchaseStrategy
         : null,
+      ...(quantity ? { quantity } : {}),
     }
   }
 }
@@ -191,6 +196,7 @@ export function buildAgents(apiKey: string | undefined, options: GeminiClientOpt
           strategy: deterministic.strategy ?? generated.strategy,
           priceOrder: deterministic.priceOrder ?? generated.priceOrder,
           selectionSize: deterministic.selectionSize ?? generated.selectionSize,
+          quantity: deterministic.quantity ?? generated.quantity,
         }
         return {
           intent,

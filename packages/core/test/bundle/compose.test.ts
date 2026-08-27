@@ -73,4 +73,27 @@ describe('composeBundle', () => {
     expect(cheapest.items.map((product) => product.price)).toEqual([50000, 70000, 90000])
     expect(expensive.items.map((product) => product.price)).toEqual([90000, 70000, 50000])
   })
+
+  it('prioriza la cantidad exacta y conserva el presupuesto', () => {
+    const shoes = [
+      p('a', 'zapatillas', 150000), p('b', 'zapatillas', 140000),
+      p('c', 'zapatillas', 130000), p('d', 'zapatillas', 90000),
+    ]
+    const bundle = composeBundle(shoes, {
+      category: 'zapatillas', maxBudget: 400000, preferences: ['zapatillas'], requiredProducts: ['zapatillas'],
+      strategy: 'maximize-budget', selectionSize: 'multiple', quantity: 3,
+    }, [])
+    expect(bundle.items).toHaveLength(3)
+    expect(bundle.totalPrice).toBeLessThanOrEqual(400000)
+    expect(new Set(bundle.items.map((product) => product.id)).size).toBe(3)
+  })
+
+  it('devuelve hasta la cantidad pedida si no existen suficientes opciones compatibles', () => {
+    const shoes = [p('a', 'zapatillas', 70000), p('b', 'zapatillas', 80000)]
+    const bundle = composeBundle(shoes, {
+      category: 'zapatillas', maxBudget: 300000, preferences: ['zapatillas'], requiredProducts: ['zapatillas'],
+      strategy: 'balanced', quantity: 5,
+    }, [])
+    expect(bundle.items).toHaveLength(2)
+  })
 })

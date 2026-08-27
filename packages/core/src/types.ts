@@ -76,6 +76,8 @@ export interface BundleRequest {
   priceOrder?: PriceOrder
   /** Distingue “la más cara” de “las más caras” y pedidos de varias unidades. */
   selectionSize?: SelectionSize
+  /** Cantidad exacta solicitada. Tiene prioridad sobre selectionSize. */
+  quantity?: number
   priceIntent?: PriceIntent
 }
 
@@ -154,6 +156,7 @@ export interface ConversationState {
   strategy?: PurchaseStrategy
   priceOrder?: PriceOrder
   selectionSize?: SelectionSize
+  quantity?: number
   lastRecommendationId?: string
   lastProducts?: string[]
   hardConstraints: string[]
@@ -172,4 +175,5 @@ export interface ParsedIntent {
   strategy: PurchaseStrategy | null
   priceOrder?: PriceOrder
   selectionSize?: SelectionSize
+  quantity?: number
 }

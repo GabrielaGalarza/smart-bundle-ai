@@ -189,27 +189,51 @@ function openCategoryBundle(
     }
     return selected
   }
+  const takeRequestedQuantity = (ranked: Product[], requested: number): Product[] => {
+    const maximum = Math.min(Math.max(1, Math.trunc(requested)), ranked.length)
+    for (let target = maximum; target >= 1; target -= 1) {
+      const selected: Product[] = []
+      let total = 0
+      for (let index = 0; index < ranked.length && selected.length < target; index += 1) {
+        const product = ranked[index]
+        const remainingSlots = target - selected.length - 1
+        const cheapestRemaining = ranked.slice(index + 1)
+          .sort((left, right) => left.price - right.price || left.id.localeCompare(right.id))
+          .slice(0, remainingSlots)
+        if (cheapestRemaining.length < remainingSlots) continue
+        const minimumCompletion = cheapestRemaining.reduce((sum, candidate) => money(sum + candidate.price), 0)
+        if (money(total + product.price + minimumCompletion) > request.maxBudget) continue
+        selected.push(product)
+        total = money(total + product.price)
+      }
+      if (selected.length === target) return selected
+    }
+    return []
+  }
+  const select = (ranked: Product[], defaultMaximum = Number.POSITIVE_INFINITY): Product[] =>
+    request.quantity != null
+      ? takeRequestedQuantity(ranked, request.quantity)
+      : takeInBudget(ranked, defaultMaximum)
   let items: Product[]
   if (request.priceOrder) {
     const direction = request.priceOrder === 'asc' ? 1 : -1
     const ranked = available.sort((left, right) =>
       direction * (left.price - right.price) || left.id.localeCompare(right.id))
-    items = takeInBudget(ranked, request.selectionSize === 'multiple' ? 5 : 1)
+    items = select(ranked, request.selectionSize === 'multiple' ? 5 : 1)
   } else if (strategy === 'lowest-cost') {
     const ranked = available.sort((left, right) => left.price - right.price || left.id.localeCompare(right.id))
-    items = takeInBudget(ranked, request.selectionSize === 'multiple' ? 5 : 1)
+    items = select(ranked, request.selectionSize === 'multiple' ? 5 : 1)
   } else if (strategy === 'quality-first' && available.some((product) => product.decisionSignals?.qualityScore != null)) {
-    items = available
-      .sort((left, right) =>
-        (right.decisionSignals?.qualityScore ?? 0) - (left.decisionSignals?.qualityScore ?? 0) ||
-        left.id.localeCompare(right.id),
-      ).slice(0, 1)
+    const ranked = available.sort((left, right) =>
+      (right.decisionSignals?.qualityScore ?? 0) - (left.decisionSignals?.qualityScore ?? 0) ||
+      left.id.localeCompare(right.id))
+    items = select(ranked, 1)
   } else {
     const ranked = available.sort((left, right) =>
       preference(right) - preference(left) ||
       right.price - left.price ||
       left.id.localeCompare(right.id))
-    items = takeInBudget(ranked)
+    items = select(ranked)
   }
   const evaluated = evaluateBundlePricing(items, request.maxBudget, policy)
   return {

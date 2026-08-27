@@ -205,6 +205,17 @@ main { max-width: 1180px; margin: 0 auto; padding: 34px 24px 74px; }
   font: 600 .64rem var(--mono);
   box-shadow: 0 4px 12px rgba(19,37,63,.14);
 }
+.sba-agent-icon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.result-identifiers { display: flex; align-items: center; justify-content: flex-end; }
+#recommendation-id { color: var(--muted); font: .56rem var(--mono); opacity: .72; }
 .chat-bubble {
   max-width: min(83%, 460px);
   border: 1px solid var(--line);

@@ -40,6 +40,7 @@ export interface ConversationStatePatch {
   strategy?: PurchaseStrategy | null
   priceOrder?: PriceOrder
   selectionSize?: SelectionSize
+  quantity?: number
   priceIntent?: PriceIntent
 }
 
@@ -129,7 +130,7 @@ export function parsePriceIntent(
 
 export function conversationAction(message: string): string | undefined {
   const text = normalize(message)
-  if (/\b(quiero ese|quiero esa|me quedo con ese|me quedo con esa|comprar|continuar)\b/.test(text)) {
+  if (/\b(quiero ese|quiero esa|quiero esta seleccion|me quedo con ese|me quedo con esa|comprar|continuar)\b/.test(text)) {
     return 'recommendation-accepted'
   }
   if (/\bno\s+(?:quiero\s+)?(?:la\s+)?de\b|\bno\s+esa\b|\bdescarta\b.*\banterior\b/.test(text)) {
@@ -217,6 +218,7 @@ export function updateConversationState(
     strategy: patch.strategy ?? parsed?.strategy ?? contextualStrategy(message) ?? current.strategy ?? 'balanced',
     priceOrder: patch.priceOrder ?? parsed?.priceOrder ?? current.priceOrder,
     selectionSize: patch.selectionSize ?? parsed?.selectionSize ?? current.selectionSize,
+    quantity: patch.quantity ?? parsed?.quantity ?? current.quantity,
     hardConstraints: detectedBrand
       ? unique([...withoutGroup(current.hardConstraints, BRANDS), `marca:${detectedBrand}`])
       : asksOtherBrand ? withoutGroup(current.hardConstraints, BRANDS) : current.hardConstraints,

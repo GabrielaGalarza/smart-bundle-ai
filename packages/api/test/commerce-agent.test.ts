@@ -95,4 +95,39 @@ describe('asistente comercial Lenaldi', () => {
     expect(next.body.bundle.items.every((product: Product) => product.brand === 'Nike')).toBe(true)
     expect(next.body.bundle.totalPrice).toBeLessThanOrEqual(600000)
   })
+
+  it('actualiza la cantidad y conserva el presupuesto entre turnos', async () => {
+    const initial = await bundle('Tengo 500 mil para zapatillas')
+    const next = await bundle('Quiero tres zapatillas', initial.body.conversationId)
+    expect(next.body.request).toMatchObject({ maxBudget: 500000, quantity: 3 })
+    expect(next.body.conversation.state.quantity).toBe(3)
+    expect(next.body.bundle.items).toHaveLength(3)
+    expect(next.body.bundle.totalPrice).toBeLessThanOrEqual(500000)
+  })
+
+  it('devuelve exactamente dos Nike y mantiene la marca al cambiar solo la cantidad', async () => {
+    const initial = await bundle('Tengo 500 mil y quiero Nike')
+    const next = await bundle('Mejor mostrame dos', initial.body.conversationId)
+    expect(next.body.request).toMatchObject({ maxBudget: 500000, quantity: 2 })
+    expect(next.body.bundle.items).toHaveLength(2)
+    expect(next.body.bundle.items.every((product: Product) => product.brand === 'Nike')).toBe(true)
+  })
+
+  it('interpreta cinco Puma y no toma talle 38 como cantidad', async () => {
+    const puma = await bundle('Quiero cinco Puma con 500 mil')
+    expect(puma.body.request.quantity).toBe(5)
+    expect(puma.body.bundle.items.every((product: Product) => product.brand === 'Puma')).toBe(true)
+    const size = await bundle('Talle 38', puma.body.conversationId)
+    expect(size.body.request.quantity).toBe(5)
+  })
+
+  it('conserva un presupuesto informado antes de la marca y la cantidad', async () => {
+    const initial = await bundle('Tengo 500 mil')
+    expect(initial.response.status).toBe(200)
+    const next = await bundle('Quiero cuatro Puma', initial.body.conversationId)
+    expect(next.body.request).toMatchObject({ maxBudget: 500000, quantity: 4 })
+    expect(next.body.bundle.items).toHaveLength(3)
+    expect(next.body.bundle.items.every((product: Product) => product.brand === 'Puma')).toBe(true)
+    expect(next.body.explanation).toMatch(/Encontré 3 de 4 opciones compatibles/i)
+  })
 })

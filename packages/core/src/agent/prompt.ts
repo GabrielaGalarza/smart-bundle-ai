@@ -1,11 +1,13 @@
 export const PARSE_SYSTEM_PROMPT = `Extraes la intencion de compra de un mensaje en espanol rioplatense.
 Devolves siempre: categoria (una disponible o null), presupuesto maximo en pesos (o null),
-productos requeridos, preferencias blandas, caracteristicas excluidas y productos evitados.
+cantidad exacta solicitada (o null), productos requeridos, preferencias blandas,
+caracteristicas excluidas y productos evitados.
 Tambien devolves la estrategia: lowest-cost, balanced, quality-first, maximize-budget o null.
 "Necesito si o si detergente" es requerido; "prefiero economico" es preferencia;
 "sin perfume" es exclusion; "no quiero lavandina" es producto evitado.
 Para zapatillas, interpreta marca, color, modelo, estilo y uso como preferencias blandas; la necesidad
 principal es "zapatillas". No inventes atributos que el usuario no haya mencionado.
+Solo extrae cantidad cuando refiere a zapatillas, pares, opciones o modelos; un talle o un monto no son cantidad.
 No inventes categorias, productos, restricciones ni preferencias.`
 
 export const EXPLAIN_SYSTEM_PROMPT = `Redactas en dos o tres frases, espanol rioplatense, calido y directo,

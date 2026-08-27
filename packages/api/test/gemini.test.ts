@@ -8,6 +8,7 @@ const geminiPayload = {
         text: JSON.stringify({
           category: 'zapatillas',
           maxBudget: 80000,
+          quantity: null,
           requiredProducts: ['zapatillas'],
           preferredTags: ['nike', 'claras', 'uso diario'],
           excludedTags: [],
@@ -75,5 +76,18 @@ describe('adaptador Gemini', () => {
       fallbackUsed: false,
       intentSource: 'gemini',
     })
+  })
+
+  it('prioriza la cantidad determinística cuando Gemini devuelve otra', async () => {
+    const payload = structuredClone(geminiPayload)
+    payload.candidates[0].content.parts[0].text = JSON.stringify({
+      category: 'zapatillas', maxBudget: 500000, quantity: 9,
+      requiredProducts: ['zapatillas'], preferredTags: [], excludedTags: [], avoidedProducts: [], strategy: null,
+    })
+    const fetchFn = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(payload), { status: 200 }))
+    const agents = buildAgents('fake-gemini-key', { fetchFn })
+    const result = await agents.parse('Quiero tres zapatillas con 500 mil', ['zapatillas'])
+    expect(result.intent.quantity).toBe(3)
+    expect(result.intent.maxBudget).toBe(500000)
   })
 })

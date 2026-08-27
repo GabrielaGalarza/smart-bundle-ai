@@ -1,10 +1,11 @@
-const queryApi = new URLSearchParams(window.location.search).get('api')
+const OFFICIAL_API = 'https://smart-bundle-ai-api.onrender.com'
+const localBrowser = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+const queryApi = localBrowser ? new URLSearchParams(window.location.search).get('api') : ''
 const configuredApi = typeof window.__SBA_CONFIG__?.apiUrl === 'string'
   ? window.__SBA_CONFIG__.apiUrl.trim()
   : ''
-const localBrowser = ['localhost', '127.0.0.1'].includes(window.location.hostname)
 const standaloneLocalWeb = localBrowser && ['5173', '5500', '5701'].includes(window.location.port)
-const apiBase = queryApi || configuredApi || (standaloneLocalWeb ? 'http://localhost:3001' : window.location.origin)
+const apiBase = queryApi || configuredApi || (standaloneLocalWeb ? 'http://localhost:3001' : localBrowser ? window.location.origin : OFFICIAL_API)
 const API = apiBase.replace(/\/$/, '')
 const endpoints = { health: `${API}/health`, products: `${API}/products`, bundle: `${API}/bundle` }
 const widgetMode = /^\/widget\/?$/.test(window.location.pathname)
@@ -46,12 +47,28 @@ async function requestJson(url, options) {
   return data
 }
 
+const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+async function requestJsonWithRetry(url, options, attempts = 3, delayMilliseconds = 1400) {
+  let lastError
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await requestJson(url, options)
+    } catch (error) {
+      lastError = error
+      const retryable = error instanceof ApiRequestError && (error.kind === 'network' || (error.status ?? 0) >= 500)
+      if (!retryable || attempt === attempts) throw error
+      await wait(delayMilliseconds)
+    }
+  }
+  throw lastError
+}
+
 function connectionHelp(error) {
   const detail = error instanceof Error ? error.message : 'Error desconocido'
   if (!(error instanceof ApiRequestError) || error.kind === 'http') return detail
   return localBrowser
     ? `${detail}. Verificá que el backend esté activo con npm run dev:api.`
-    : `${detail}. Verificá VITE_API_URL y que el backend de Render esté activo.`
+    : 'El asistente está temporalmente iniciándose o no disponible. Podés seguir explorando la tienda y probar nuevamente en unos segundos.'
 }
 
 const CATEGORY_LABELS = { limpieza: 'Limpieza', tecnologia: 'Tecnología', 'cuidado-personal': 'Cuidado personal', zapatillas: 'Zapatillas' }
@@ -91,18 +108,39 @@ function renderSource(catalog) {
     : 'Decime qué necesitás y cuánto querés gastar. Voy a interpretar tu pedido y reoptimizar cada respuesta.'
 }
 
-function catalogImageUrl(product) {
-  if (!product?.imageUrl || !product?.productUrl) return product?.imageUrl
+function catalogImageProxyUrl(product, imageUrl) {
+  if (!imageUrl || !product?.productUrl) return null
   try {
-    const image = new URL(product.imageUrl)
+    const image = new URL(imageUrl)
     const page = new URL(product.productUrl)
-    if (image.hostname !== 'lh3.googleusercontent.com' || !image.pathname.startsWith('/sitesv/')) return product.imageUrl
-    if (page.hostname !== 'sites.google.com' || !page.pathname.startsWith('/view/lenaldi/')) return product.imageUrl
+    if (image.hostname !== 'lh3.googleusercontent.com' || !image.pathname.startsWith('/sitesv/')) return null
+    if (page.hostname !== 'sites.google.com' || !page.pathname.startsWith('/view/lenaldi/')) return null
     const query = new URLSearchParams({ url: image.toString(), page: page.toString() })
     return `${API}/catalog-image?${query}`
   } catch {
-    return product.imageUrl
+    return null
   }
+}
+
+function catalogImageCandidates(product) {
+  const sourceUrls = [...new Set([product?.imageUrl, ...(product?.imageUrls ?? [])].filter(Boolean))]
+  return sourceUrls.flatMap((imageUrl) => {
+    const proxyUrl = catalogImageProxyUrl(product, imageUrl)
+    return proxyUrl && proxyUrl !== imageUrl ? [imageUrl, proxyUrl] : [imageUrl]
+  })
+}
+
+function catalogImageUrl(product) {
+  return catalogImageCandidates(product)[0]
+}
+
+const AGENT_ICON_SVG = '<svg class="sba-agent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14v9H9l-4 3v-12Z"/><path d="M9 9.5h6M8 14.5v3h8v-3"/></svg>'
+function agentAvatar() {
+  const avatar = document.createElement('span')
+  avatar.className = 'chat-avatar'
+  avatar.setAttribute('aria-hidden', 'true')
+  avatar.innerHTML = AGENT_ICON_SVG
+  return avatar
 }
 
 function productPlaceholder() {
@@ -136,10 +174,16 @@ function productCard(product) {
   }
   if (product.imageUrl) {
     const image = document.createElement('img')
-    image.src = catalogImageUrl(product)
+    const candidates = catalogImageCandidates(product)
+    let imageIndex = 0
+    image.src = candidates[imageIndex]
     image.alt = product.name
     image.loading = 'lazy'
-    image.addEventListener('error', () => image.replaceWith(productPlaceholder()), { once: true })
+    image.addEventListener('error', () => {
+      imageIndex += 1
+      if (candidates[imageIndex]) image.src = candidates[imageIndex]
+      else image.replaceWith(productPlaceholder())
+    })
     media.appendChild(image)
   } else {
     media.appendChild(productPlaceholder())
@@ -211,7 +255,7 @@ async function loadProducts(search = '') {
   } catch (error) {
     elements.grid.replaceChildren()
     elements.message.textContent = `No se pudo consultar el catálogo: ${connectionHelp(error)}`
-    elements.badge.textContent = 'API no disponible'
+    elements.badge.textContent = 'Conectando con el catálogo…'
     elements.badge.className = 'source-badge source-badge--local'
   }
 }
@@ -236,31 +280,34 @@ function updateCategoryCopy(category) {
 }
 
 async function initialize() {
+  const connectingMessage = 'Conectando con Smart Bundle AI…'
+  elements.drawerIntro.textContent = connectingMessage
+  const loadingMessage = document.querySelector('.store-loading p')
+  if (loadingMessage) loadingMessage.textContent = connectingMessage
+  let health
   try {
-    const health = await requestJson(endpoints.health)
-    selectedCategory = health.categories.includes('zapatillas') ? 'zapatillas' : health.categories.includes('limpieza') ? 'limpieza' : health.categories[0]
-    elements.category.replaceChildren(...health.categories.map((category) => {
-      const option = document.createElement('option')
-      option.value = category; option.textContent = CATEGORY_LABELS[category] ?? category; option.selected = category === selectedCategory
-      return option
-    }))
-    updateCategoryCopy(selectedCategory)
-    if (widgetMode) {
-      renderSource({ source: health.catalogProvider })
-    } else {
-      await window.LenaldiStore.initialize({ health, API, requestJson, connectionHelp, catalogImageUrl, priceFormatter })
-    }
+    health = await requestJsonWithRetry(endpoints.health)
   } catch (error) {
-    if (widgetMode) appendChatMessage('assistant', `No se pudo conectar con la API: ${connectionHelp(error)}`)
-    else {
-      const state = document.createElement('section')
-      state.className = 'catalog-empty catalog-empty--error'
-      const title = document.createElement('strong')
-      title.textContent = 'API no disponible'
-      const detail = document.createElement('p')
-      detail.textContent = connectionHelp(error)
-      state.append(title, detail)
-      document.getElementById('store-app').replaceChildren(state)
+    health = { categories: ['zapatillas'], catalogProvider: 'lenaldi', whatsappNumber: null, assistantUnavailable: true }
+    elements.drawerIntro.textContent = 'El asistente está iniciándose. Probá nuevamente en unos segundos.'
+    if (widgetMode) appendChatMessage('assistant', 'El asistente está temporalmente iniciándose. Probá nuevamente en unos segundos.')
+  }
+  selectedCategory = health.categories.includes('zapatillas') ? 'zapatillas' : health.categories.includes('limpieza') ? 'limpieza' : health.categories[0]
+  elements.category.replaceChildren(...health.categories.map((category) => {
+    const option = document.createElement('option')
+    option.value = category; option.textContent = CATEGORY_LABELS[category] ?? category; option.selected = category === selectedCategory
+    return option
+  }))
+  updateCategoryCopy(selectedCategory)
+  if (!health.assistantUnavailable) renderSource({ source: health.catalogProvider })
+  if (!widgetMode) {
+    await window.LenaldiStore.initialize({
+      health, API,
+      requestJson: (url, options) => requestJsonWithRetry(url, options, 2, 1200),
+      connectionHelp, catalogImageUrl, catalogImageCandidates, priceFormatter,
+    })
+    if (health.assistantUnavailable) {
+      elements.drawerIntro.textContent = 'El asistente está temporalmente iniciándose. Podés seguir explorando la tienda.'
     }
   }
 }
@@ -313,9 +360,7 @@ function appendChatMessage(role, text) {
   const message = document.createElement('article')
   message.className = `chat-message chat-message--${role}`
   if (role === 'assistant') {
-    const avatar = document.createElement('span')
-    avatar.className = 'chat-avatar'; avatar.setAttribute('aria-hidden', 'true'); avatar.textContent = 'AI'
-    message.appendChild(avatar)
+    message.appendChild(agentAvatar())
   }
   const bubble = document.createElement('div')
   bubble.className = 'chat-bubble'
@@ -330,8 +375,7 @@ function renderWhatsAppHandoff(data) {
   conversationId = data.conversationId
   const article = document.createElement('article')
   article.className = 'chat-message chat-message--assistant whatsapp-handoff'
-  const avatar = document.createElement('span')
-  avatar.className = 'chat-avatar'; avatar.setAttribute('aria-hidden', 'true'); avatar.textContent = 'AI'
+  const avatar = agentAvatar()
   const bubble = document.createElement('div')
   bubble.className = 'chat-bubble whatsapp-handoff__bubble'
   const heading = document.createElement('strong')
@@ -415,13 +459,13 @@ function renderBundleItem(item) {
   const row = document.createElement('li')
   if (item.imageUrl) {
     const image = document.createElement('img')
-    image.className = 'bundle-item-image'; image.src = catalogImageUrl(item); image.alt = ''; image.loading = 'lazy'
+    const imageCandidates = catalogImageCandidates(item)
     let imageIndex = 0
-    const imageUrls = item.imageUrls ?? [item.imageUrl]
+    image.className = 'bundle-item-image'; image.src = imageCandidates[imageIndex]; image.alt = ''; image.loading = 'lazy'
     image.addEventListener('error', () => {
       imageIndex += 1
-      if (imageUrls[imageIndex]) image.src = catalogImageUrl({ ...item, imageUrl: imageUrls[imageIndex] })
-      else image.hidden = true
+      if (imageCandidates[imageIndex]) image.src = imageCandidates[imageIndex]
+      else image.replaceWith(productPlaceholder())
     })
     row.appendChild(image)
   }
@@ -478,22 +522,23 @@ function renderBundle(data) {
   elements.result.hidden = false
   const targetPrice = data.request.priceIntent?.targetPrice
   const budgetMax = data.request.priceIntent?.budgetMax
+  const itemCount = data.bundle.items.length
   elements.result.querySelector('.result-heading h3').textContent = data.commercialResponse && !data.commercialResponse.exactMatch
     ? 'Encontré estas opciones cercanas'
-    : 'Encontré esta opción para vos'
+    : itemCount > 1 ? 'Armé esta selección para vos' : 'Encontré esta opción para vos'
   const strategyLabel = STRATEGY_LABELS[data.bundle.strategy] ?? data.bundle.strategy ?? 'Equilibrado'
   const preferenceText = data.request.preferredTags?.length ? ` Preferencias: ${data.request.preferredTags.join(', ')}.` : ''
   const priceUnderstanding = targetPrice
     ? `precio objetivo ${priceFormatter.format(targetPrice)}${budgetMax ? ` y máximo ${priceFormatter.format(budgetMax)}` : ''}`
     : `hasta ${priceFormatter.format(data.request.maxBudget)}`
-  document.getElementById('understood').textContent = `Entendí: ${CATEGORY_LABELS[data.request.category] ?? data.request.category}, ${priceUnderstanding}.${preferenceText} Estrategia: ${strategyLabel.toLowerCase()}.`
+  const quantityUnderstanding = data.request.quantity ? `, ${data.request.quantity} producto${data.request.quantity === 1 ? '' : 's'}` : ''
+  document.getElementById('understood').textContent = `Entendí: ${CATEGORY_LABELS[data.request.category] ?? data.request.category}${quantityUnderstanding}, ${priceUnderstanding}.${preferenceText} Estrategia: ${strategyLabel.toLowerCase()}.`
   document.getElementById('explanation').textContent = data.explanation
   const strategyNotice = document.getElementById('strategy-notice')
   strategyNotice.textContent = data.bundle.strategyNotice ?? ''; strategyNotice.hidden = !data.bundle.strategyNotice
-  document.getElementById('engine-badge').textContent = data.intentSource === 'gemini'
-    ? 'intención: Gemini'
-    : 'fallback: reglas'
-  document.getElementById('recommendation-id').textContent = data.recommendationId
+  const engineBadge = document.getElementById('engine-badge')
+  engineBadge.textContent = ''; engineBadge.hidden = true
+  document.getElementById('recommendation-id').textContent = `Ref. ${data.recommendationId}`
   const details = data.bundle.personalization ?? {}
   const chips = [
     ...(details.coveredRequiredProducts ?? []).map((value) => `Incluye: ${value}`),
@@ -540,6 +585,7 @@ function renderBundle(data) {
   const policy = data.bundle.commercialPolicy
   document.getElementById('policy-result').textContent = policy ? `${policy.label}: ${policy.promotionApplied ? `beneficio válido del ${policy.discountPercent}%` : 'sin beneficio aplicable en esta combinación'}.` : 'Sin política promocional configurada.'
   elements.accept.hidden = !hasPricedSelection
+  elements.accept.textContent = itemCount > 1 ? 'Quiero esta selección' : 'Quiero este'
   document.getElementById('result-source').textContent = sourceLabel(data.catalog)
   scrollChat()
 }
@@ -595,7 +641,8 @@ elements.chatInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); elements.chatForm.requestSubmit() }
 })
 elements.accept.addEventListener('click', async () => {
-  await sendBundle(conversationalPayload('quiero ese'), 'Quiero este')
+  const multiple = (lastBundleResponse?.bundle?.items?.length ?? 0) > 1
+  await sendBundle(conversationalPayload(multiple ? 'quiero esta selección' : 'quiero ese'), multiple ? 'Quiero esta selección' : 'Quiero este')
 })
 document.querySelectorAll('[data-chat-prompt]').forEach((button) => {
   button.addEventListener('click', () => { elements.chatInput.value = button.dataset.chatPrompt; elements.chatForm.requestSubmit() })
