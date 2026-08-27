@@ -53,6 +53,23 @@ describe('GET /products', () => {
     expect(body.products.map((product: { id: string }) => product.id)).toEqual(['det-a', 'det-b'])
     expect(body.catalog.source).toBe('local')
   })
+
+  it('expone únicamente el número comercial público normalizado cuando está configurado', async () => {
+    const configuredApp = buildApp(catalog, undefined, '+54 9 11 7823-6492')
+    const configuredServer = await new Promise<Server>((resolve) => {
+      const instance = configuredApp.listen(0, () => resolve(instance))
+    })
+    try {
+      const address = configuredServer.address()
+      const port = typeof address === 'object' && address ? address.port : 0
+      const res = await fetch(`http://127.0.0.1:${port}/health`)
+      const body = await res.json()
+      expect(body.whatsappConfigured).toBe(true)
+      expect(body.whatsappNumber).toBe('5491178236492')
+    } finally {
+      await new Promise<void>((resolve) => configuredServer.close(() => resolve()))
+    }
+  })
 })
 
 describe('GET /catalog-image', () => {

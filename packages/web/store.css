@@ -1,0 +1,102 @@
+:root { --store-black:#101010; --store-gold:#c5a35b; --store-gold-light:#ead8ae; --store-off:#f6f3ed; --store-grey:#77736c; --store-line:#dedbd4; --font:"DM Sans",system-ui,sans-serif; }
+body { background:#fff; color:var(--store-black); font-family:var(--font); }
+.promo-bar { min-height:30px; display:grid; place-items:center; padding:6px 20px; background:var(--store-black); color:#eee8dc; font-size:.7rem; letter-spacing:.05em; text-align:center; }
+.lenaldi-header { position:sticky; top:0; z-index:18; border-bottom:1px solid var(--store-line); background:rgba(255,255,255,.96); backdrop-filter:blur(12px); }
+.lenaldi-header__inner { max-width:1320px; min-height:76px; margin:auto; padding:0 28px; display:grid; grid-template-columns:auto 1fr minmax(220px,300px) auto; align-items:center; gap:34px; }
+.lenaldi-logo { display:flex; flex-direction:column; color:var(--store-black); text-decoration:none; line-height:1; letter-spacing:.16em; }
+.lenaldi-logo strong { font-family:"Playfair Display",serif; font-size:1.45rem; letter-spacing:.08em; }
+.lenaldi-logo small { margin-top:5px; color:var(--store-gold); font-size:.5rem; font-weight:700; letter-spacing:.43em; }
+.store-navigation { display:flex; justify-content:center; gap:26px; }
+.store-navigation a { position:relative; padding:27px 0; color:#34322f; font-size:.8rem; font-weight:600; text-decoration:none; }
+.store-navigation a::after { content:""; position:absolute; right:0; bottom:20px; left:0; height:1px; transform:scaleX(0); background:var(--store-gold); transition:transform .2s; }
+.store-navigation a:hover::after,.store-navigation a[aria-current]::after { transform:scaleX(1); }
+.store-search { height:39px; display:flex; border-bottom:1px solid #aaa49a; }
+.store-search input { min-width:0; width:100%; border:0; outline:0; padding:7px 2px; background:transparent; font-size:.76rem; }
+.store-search button { width:36px; border:0; background:transparent; font-size:1.3rem; }
+.cart-button { min-width:47px; justify-content:center; border:0; border-radius:0; padding:8px; background:transparent; }
+.cart-button b { background:var(--store-gold-light); }
+.mobile-menu { display:none; border:0; background:transparent; font-size:1.3rem; }
+#store-app { max-width:none; min-height:65vh; margin:0; padding:0; }
+.store-loading { min-height:65vh; display:grid; place-content:center; justify-items:center; color:var(--store-grey); }
+.store-loading span { width:30px; height:30px; border:2px solid var(--store-line); border-top-color:var(--store-gold); border-radius:50%; animation:spin .8s linear infinite; }
+.shop-kicker { margin:0 0 10px; color:#9b7c3e; font-size:.67rem; font-weight:700; letter-spacing:.19em; text-transform:uppercase; }
+.shop-hero { min-height:590px; display:grid; grid-template-columns:1fr 1fr; overflow:hidden; background:var(--store-off); }
+.shop-hero__copy { align-self:center; max-width:660px; padding:70px clamp(35px,8vw,125px); padding-right:35px; }
+.shop-hero h1 { margin:0; font:700 clamp(2.8rem,5.5vw,5.3rem)/.98 "Playfair Display",serif; letter-spacing:-.04em; }
+.shop-hero h1 em { color:#9b7c3e; font-weight:600; }
+.shop-hero__copy>p:not(.shop-kicker) { max-width:540px; margin:24px 0; color:#5e5a54; font-size:1rem; line-height:1.7; }
+.shop-hero__copy>div { display:flex; flex-wrap:wrap; gap:11px; }
+.shop-hero__copy a,.shop-hero__copy button { min-height:45px; display:inline-flex; align-items:center; border:1px solid var(--store-black); padding:0 20px; text-decoration:none; font-size:.76rem; font-weight:700; }
+.shop-hero__copy a { background:var(--store-black); color:#fff; }
+.shop-hero__copy button { background:transparent; color:var(--store-black); }
+.shop-hero__copy small { display:block; margin-top:24px; color:#827c72; font-size:.62rem; }
+.shop-hero__visual { min-height:590px; display:grid; place-items:center; position:relative; overflow:hidden; background:linear-gradient(140deg,#d6ccbb,#f4eee2); }
+.shop-hero__visual::before { content:""; width:min(38vw,520px); aspect-ratio:1; position:absolute; border:1px solid rgba(118,91,42,.27); border-radius:50%; box-shadow:0 0 0 55px rgba(255,255,255,.1),0 0 0 110px rgba(255,255,255,.08); }
+.shop-hero__shoe { z-index:2; width:min(82%,700px); height:430px; object-fit:contain; filter:drop-shadow(0 30px 28px rgba(46,36,20,.25)); transform:rotate(-8deg); }
+.hero-orbit { position:absolute; right:30px; bottom:28px; color:#665b49; font-size:.55rem; letter-spacing:.3em; }
+.hero-monogram { z-index:2; font:700 11rem "Playfair Display"; color:rgba(134,101,42,.25); }
+.store-section { max-width:1320px; margin:0 auto; padding:85px 28px; }
+.store-section__head { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:30px; }
+.store-section__head h2 { margin:0; font:700 clamp(1.8rem,3vw,2.6rem) "Playfair Display",serif; }
+.store-section__head>a { color:#514b42; font-size:.75rem; font-weight:700; text-decoration:none; }
+.brand-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+.brand-tile { min-height:245px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; background:#f1efea; color:var(--store-black); text-decoration:none; }
+.brand-tile img { width:90%; height:145px; object-fit:contain; transition:transform .3s; }
+.brand-tile:hover img { transform:scale(1.06); }
+.brand-tile span { color:#9b7c3e; font-size:.54rem; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
+.brand-tile strong { margin-top:5px; font:700 1.15rem "Playfair Display",serif; }
+.assistant-strip { max-width:1264px; margin:0 auto 15px; min-height:180px; display:flex; align-items:center; justify-content:space-between; gap:30px; padding:40px 55px; background:var(--store-black); color:#fff; }
+.assistant-strip>div { display:flex; align-items:center; gap:28px; }
+.assistant-strip>div>span { width:68px; height:68px; display:grid; place-items:center; border:1px solid var(--store-gold); border-radius:50%; color:var(--store-gold); font-size:1.7rem; }
+.assistant-strip p { margin:0; color:var(--store-gold-light); font-size:.65rem; letter-spacing:.16em; text-transform:uppercase; }
+.assistant-strip h2 { margin:5px 0; font:600 1.75rem "Playfair Display",serif; }
+.assistant-strip small { color:#bbb5ab; }
+.assistant-strip button { min-height:44px; border:1px solid var(--store-gold); padding:0 20px; background:var(--store-gold); color:#17130d; font-weight:700; }
+.shop-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
+.shop-card { min-width:0; border:1px solid #e5e1da; background:#fff; transition:box-shadow .2s,transform .2s; }
+.shop-card:hover { transform:translateY(-3px); box-shadow:0 17px 38px rgba(30,24,14,.09); }
+.shop-card__media { height:265px; display:grid; place-items:center; overflow:hidden; background:#f4f2ed; }
+.shop-card__media img { width:92%; height:92%; object-fit:contain; transition:transform .3s; }
+.shop-card:hover .shop-card__media img { transform:scale(1.035); }
+.product-image-fallback { width:90px; height:90px; display:grid; place-items:center; border:1px solid var(--store-gold); border-radius:50%; color:var(--store-gold); font:700 3rem "Playfair Display"; }
+.shop-card__body { padding:17px; }
+.shop-card__body>p { margin:0 0 5px; color:#9b7c3e; font-size:.6rem; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+.shop-card__name { min-height:43px; display:block; color:var(--store-black); font-size:.83rem; font-weight:600; line-height:1.45; text-decoration:none; }
+.shop-card__body>strong { display:block; margin-top:10px; font-size:1rem; }
+.unknown-stock { display:block; margin-top:4px; color:#817b71; font-size:.62rem; }
+.shop-card__actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:14px; }
+.shop-card__actions a,.shop-card__actions button { min-height:37px; display:grid; place-items:center; border:1px solid #bbb4a8; padding:5px; background:#fff; color:#24211c; font-size:.64rem; font-weight:700; text-align:center; text-decoration:none; }
+.shop-card__actions button { border-color:var(--store-black); background:var(--store-black); color:#fff; }
+.catalog-hero { padding:58px max(28px,calc((100% - 1264px)/2)); background:#f3f0e9; }
+.catalog-hero h1 { margin:0; font:700 clamp(2.3rem,5vw,4.2rem) "Playfair Display",serif; }
+.catalog-hero>p:last-child { color:#6d675e; font-size:.82rem; }
+.catalog-layout { max-width:1320px; margin:auto; padding:45px 28px 90px; display:grid; grid-template-columns:210px 1fr; gap:38px; }
+.filters { align-self:start; position:sticky; top:120px; display:grid; gap:18px; }
+.filters__heading,.catalog-toolbar { display:flex; align-items:center; justify-content:space-between; gap:15px; }
+.filters__heading button { border:0; background:transparent; color:#8a7446; font-size:.67rem; text-decoration:underline; }
+.filters label { display:grid; gap:7px; color:#514d46; font-size:.7rem; font-weight:700; }
+.filters select,.catalog-toolbar select { min-height:41px; border:1px solid #cfc9bf; padding:0 10px; background:#fff; color:#28241f; }
+.filters__agent { min-height:44px; border:0; background:var(--store-black); color:#fff; font-size:.7rem; font-weight:700; }
+.catalog-toolbar { min-height:42px; margin-bottom:20px; border-bottom:1px solid var(--store-line); padding-bottom:13px; color:#736e66; font-size:.7rem; }
+.catalog-toolbar label { display:flex; align-items:center; gap:9px; }
+.catalog-toolbar select { min-height:35px; }
+.catalog-empty { grid-column:1/-1; padding:70px 25px; border:1px solid var(--store-line); text-align:center; }
+.catalog-empty strong { font:600 1.45rem "Playfair Display"; }.catalog-empty p { color:var(--store-grey); }
+.catalog-empty button,.not-found a { display:inline-block; border:0; padding:12px 18px; background:var(--store-black); color:#fff; font-weight:700; text-decoration:none; }
+.breadcrumbs { max-width:1264px; margin:auto; display:flex; gap:9px; padding:30px 28px 0; color:#888278; font-size:.67rem; }.breadcrumbs a { color:#5b564f; }
+.product-detail { max-width:1264px; margin:auto; padding:30px 28px 85px; display:grid; grid-template-columns:1.05fr .95fr; gap:70px; }
+.product-detail__media { min-height:570px; display:grid; place-items:center; background:#f3f1ec; }.product-detail__media img { width:92%; height:520px; object-fit:contain; }
+.product-detail__copy { align-self:center; max-width:500px; }.product-detail__copy h1 { margin:0 0 18px; font:700 clamp(2.2rem,4vw,3.7rem)/1.04 "Playfair Display"; }
+.product-detail__price { display:block; font-size:1.55rem; }.product-detail__status { margin:17px 0; padding:13px 0; border-block:1px solid var(--store-line); color:#726c62; font-size:.73rem; }.product-detail__status small { display:block; margin-top:3px; }
+.product-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:22px 0; }.product-facts span { color:#8a8379; font-size:.6rem; text-transform:uppercase; }.product-facts strong { display:block; margin-top:4px; color:#29251f; font-size:.73rem; text-transform:none; }
+.buy-whatsapp,.ask-agent { width:100%; min-height:48px; border:1px solid var(--store-black); margin-top:9px; font-weight:700; }.buy-whatsapp { background:var(--store-black); color:#fff; }.ask-agent { background:#fff; color:var(--store-black); }
+.source-link { display:inline-block; margin-top:18px; color:#665a45; font-size:.7rem; }.product-accuracy { color:#888278; font-size:.62rem; line-height:1.5; }.related { border-top:1px solid var(--store-line); }
+.not-found { min-height:60vh; display:grid; place-content:center; justify-items:center; padding:50px; text-align:center; }.not-found span { color:var(--store-gold); font-size:.7rem; letter-spacing:.2em; }.not-found h1 { font:700 2.8rem "Playfair Display"; }.not-found p { color:var(--store-grey); }
+.lenaldi-footer { display:grid; grid-template-columns:2fr 1fr 1fr; gap:45px; padding:55px max(28px,calc((100% - 1264px)/2)); background:var(--store-black); color:#c5c0b7; font-size:.72rem; }
+.lenaldi-logo--footer { width:max-content; color:#fff; }.lenaldi-footer>div { display:flex; flex-direction:column; align-items:flex-start; gap:9px; }.lenaldi-footer>div>strong { margin-bottom:6px; color:#fff; }.lenaldi-footer a,.lenaldi-footer button { border:0; padding:0; background:none; color:#c5c0b7; font-size:.72rem; text-decoration:none; }.lenaldi-footer__note { grid-column:1/-1; margin:20px 0 0; border-top:1px solid #312e29; padding-top:20px; color:#858078; font-size:.6rem; }
+.agent-launcher { right:22px; bottom:22px; z-index:25; border:1px solid #4f4637; border-radius:17px; padding:11px 15px 11px 10px; background:var(--store-black); box-shadow:0 12px 35px rgba(0,0,0,.25); }.agent-launcher__icon { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:var(--store-gold); color:#15110b; }.agent-launcher>span:last-child { display:flex; flex-direction:column; align-items:flex-start; }.agent-launcher strong { font-size:.73rem; }.agent-launcher small { color:#c6bda9; font-size:.56rem; font-weight:500; }
+.agent-drawer { inset:auto 20px 20px auto; width:min(430px,calc(100% - 40px)); height:min(680px,calc(100dvh - 40px)); border:1px solid #d7d1c6; border-radius:20px; padding:20px; box-shadow:0 24px 70px rgba(0,0,0,.25); }.drawer-backdrop { background:transparent; backdrop-filter:none; pointer-events:none; }.drawer-head h2 { color:var(--store-black); font-family:"Playfair Display"; }.eyebrow { color:#9b7c3e; }.chat-avatar { background:var(--store-black); color:var(--store-gold-light); }.chat-composer:focus-within { border-color:var(--store-gold); box-shadow:0 0 0 3px rgba(197,163,91,.15); }.chat-composer button { background:var(--store-black); }.prompt-suggestions button { border-color:#cbbd9e; color:#66542f; }.accept-recommendation,.whatsapp-continue { background:#177b55; }
+.widget-mode>.promo-bar,.widget-mode>.lenaldi-header,.widget-mode>#store-app,.widget-mode>.lenaldi-footer,.widget-mode>.agent-launcher,.widget-mode>.drawer-backdrop { display:none!important; }.widget-mode .agent-drawer { position:relative; inset:auto; width:100%; max-width:none; height:100dvh; border:0; border-radius:0; box-shadow:none; }
+@media(max-width:1000px){.lenaldi-header__inner{grid-template-columns:auto auto 1fr auto;gap:18px}.mobile-menu{display:block}.store-navigation{display:none;position:absolute;top:76px;left:0;right:0;flex-direction:column;gap:0;border-top:1px solid var(--store-line);padding:10px 24px 20px;background:#fff;box-shadow:0 14px 25px rgba(0,0,0,.08)}.store-navigation--open{display:flex}.store-navigation a{padding:13px 0}.store-navigation a::after{bottom:8px}.store-search{justify-self:end;max-width:260px}.shop-hero{min-height:520px}.shop-hero__visual{min-height:520px}.shop-grid{grid-template-columns:repeat(3,1fr)}.brand-grid{grid-template-columns:repeat(3,1fr)}.product-detail{gap:35px}.product-detail__media{min-height:470px}.product-detail__media img{height:420px}}
+@media(max-width:700px){.promo-bar{font-size:.6rem}.lenaldi-header__inner{min-height:65px;padding:0 15px;grid-template-columns:auto 1fr auto}.lenaldi-logo{justify-self:center}.lenaldi-logo strong{font-size:1.15rem}.store-search{grid-column:1/-1;width:100%;max-width:none;height:0;overflow:hidden;border:0}.store-navigation{top:65px}.cart-button{justify-self:end}.shop-hero{min-height:auto;grid-template-columns:1fr}.shop-hero__copy{order:2;padding:40px 22px 48px}.shop-hero__visual{min-height:330px}.shop-hero__shoe{height:290px}.shop-hero h1{font-size:2.8rem}.store-section{padding:58px 15px}.store-section__head{align-items:start}.brand-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory}.brand-tile{min-width:180px;min-height:220px;scroll-snap-align:start}.assistant-strip{margin:0 15px;padding:30px 22px;flex-direction:column;align-items:stretch}.assistant-strip>div>span{display:none}.shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.shop-card__media{height:190px}.shop-card__body{padding:12px}.shop-card__actions{grid-template-columns:1fr}.catalog-hero{padding:42px 18px}.catalog-layout{padding:25px 15px 65px;grid-template-columns:1fr;gap:22px}.filters{position:static;grid-template-columns:1fr 1fr}.filters__heading,.filters__agent{grid-column:1/-1}.catalog-toolbar{align-items:flex-start}.catalog-toolbar label{flex-direction:column;align-items:flex-end}.product-detail{padding:20px 15px 60px;grid-template-columns:1fr;gap:28px}.product-detail__media{min-height:340px}.product-detail__media img{height:315px}.product-detail__copy h1{font-size:2.4rem}.breadcrumbs{padding:22px 15px 0}.lenaldi-footer{grid-template-columns:1fr 1fr;padding:45px 22px}.lenaldi-footer>div:first-child,.lenaldi-footer__note{grid-column:1/-1}.agent-launcher{right:12px;bottom:12px;padding:9px}.agent-launcher>span:last-child{display:none}.drawer-backdrop{pointer-events:auto;background:rgba(0,0,0,.45)}.agent-drawer{inset:8px;width:calc(100% - 16px);height:calc(100dvh - 16px);border-radius:14px;padding:15px}.chat-thread{min-height:0}.chat-bubble{max-width:88%}}
+@media(max-width:400px){.shop-grid{grid-template-columns:1fr}.shop-card__media{height:250px}.product-facts{grid-template-columns:1fr}.lenaldi-footer{grid-template-columns:1fr}.lenaldi-footer>div{grid-column:1/-1}}

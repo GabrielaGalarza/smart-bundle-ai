@@ -4,6 +4,9 @@
   "outputDirectory": "dist/web",
   "rewrites": [
     { "source": "/widget", "destination": "/widget/index.html" },
-    { "source": "/widget/", "destination": "/widget/index.html" }
+    { "source": "/widget/", "destination": "/widget/index.html" },
+    { "source": "/productos", "destination": "/index.html" },
+    { "source": "/producto/:id", "destination": "/index.html" },
+    { "source": "/marca/:brand", "destination": "/index.html" }
   ]
 }

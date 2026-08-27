@@ -10,14 +10,14 @@ export interface WhatsAppHandoff {
 const formatArs = (value: number): string =>
   `$${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(value)}`
 
-function validatedWhatsAppNumber(value: string | undefined): string | undefined {
+export function configuredWhatsAppNumber(value: string | undefined): string | undefined {
   if (!value?.trim()) return undefined
   const number = value.replace(/[^\d]/g, '')
   return /^\d{8,15}$/.test(number) ? number : undefined
 }
 
 export function whatsappConfigured(value: string | undefined): boolean {
-  return Boolean(validatedWhatsAppNumber(value))
+  return Boolean(configuredWhatsAppNumber(value))
 }
 
 export function createWhatsAppHandoff(
@@ -25,7 +25,7 @@ export function createWhatsAppHandoff(
   recommendationId: string,
   products: Product[],
 ): WhatsAppHandoff | undefined {
-  const number = validatedWhatsAppNumber(configuredNumber)
+  const number = configuredWhatsAppNumber(configuredNumber)
   if (!number || products.length === 0) return undefined
 
   const total = products.reduce((sum, product) => sum + product.price, 0)

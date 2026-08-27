@@ -59,10 +59,8 @@ const STRATEGY_LABELS = { 'lowest-cost': 'Más económico', balanced: 'Equilibra
 const priceFormatter = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 })
 
 const elements = {
-  nav: document.getElementById('category-nav'), grid: document.getElementById('product-grid'), message: document.getElementById('catalog-message'),
-  badge: document.getElementById('source-badge'), heroSignal: document.getElementById('hero-signal'), drawerIntro: document.getElementById('drawer-intro'),
-  searchForm: document.getElementById('search-form'), search: document.getElementById('store-search'), launcher: document.getElementById('agent-launcher'),
-  heroLauncher: document.getElementById('hero-agent-button'), drawer: document.getElementById('agent-drawer'), backdrop: document.getElementById('drawer-backdrop'),
+  drawerIntro: document.getElementById('drawer-intro'), launcher: document.getElementById('agent-launcher'),
+  drawer: document.getElementById('agent-drawer'), backdrop: document.getElementById('drawer-backdrop'),
   close: document.getElementById('drawer-close'), thread: document.getElementById('chat-thread'), chatForm: document.getElementById('chat-form'),
   chatInput: document.getElementById('chat-input'), chatSubmit: document.getElementById('chat-submit'), typing: document.getElementById('typing-indicator'),
   manual: document.getElementById('manual-config'), form: document.getElementById('bundle-form'), category: document.getElementById('bundle-category'),
@@ -77,6 +75,7 @@ let lastFocusedElement = null
 let lastBundleResponse = null
 let conversationId = null
 let requestInFlight = false
+let pendingProductContext = null
 
 function sourceLabel(catalog) {
   if (catalog?.source === 'lenaldi') return 'Catálogo: Lenaldi — datos públicos del sitio'
@@ -86,11 +85,7 @@ function sourceLabel(catalog) {
 }
 
 function renderSource(catalog) {
-  elements.badge.textContent = sourceLabel(catalog)
-  const sourceClass = catalog?.source === 'vtex' ? 'source-badge--vtex' : catalog?.source === 'lenaldi' ? 'source-badge--lenaldi' : 'source-badge--local'
-  elements.badge.className = `source-badge ${sourceClass}`
   const lenaldi = catalog?.source === 'lenaldi'
-  elements.heroSignal.textContent = lenaldi ? 'Presupuesto + preferencias + datos públicos' : 'Presupuesto + preferencias + stock real'
   elements.drawerIntro.textContent = lenaldi
     ? 'Decime qué zapatillas buscás y cuánto querés gastar. Voy a interpretar tu pedido y comparar los datos públicos disponibles.'
     : 'Decime qué necesitás y cuánto querés gastar. Voy a interpretar tu pedido y reoptimizar cada respuesta.'
@@ -241,18 +236,9 @@ function updateCategoryCopy(category) {
 }
 
 async function initialize() {
-  renderLoading()
   try {
     const health = await requestJson(endpoints.health)
     selectedCategory = health.categories.includes('zapatillas') ? 'zapatillas' : health.categories.includes('limpieza') ? 'limpieza' : health.categories[0]
-    elements.nav.replaceChildren(...health.categories.map((category) => {
-      const button = document.createElement('button')
-      button.type = 'button'; button.className = 'category-link'; button.dataset.category = category
-      button.textContent = CATEGORY_LABELS[category] ?? category
-      button.setAttribute('aria-current', String(category === selectedCategory))
-      button.addEventListener('click', () => selectCategory(category))
-      return button
-    }))
     elements.category.replaceChildren(...health.categories.map((category) => {
       const option = document.createElement('option')
       option.value = category; option.textContent = CATEGORY_LABELS[category] ?? category; option.selected = category === selectedCategory
@@ -262,12 +248,20 @@ async function initialize() {
     if (widgetMode) {
       renderSource({ source: health.catalogProvider })
     } else {
-      await loadProducts()
+      await window.LenaldiStore.initialize({ health, API, requestJson, connectionHelp, catalogImageUrl, priceFormatter })
     }
   } catch (error) {
-    elements.grid.replaceChildren()
-    elements.message.textContent = connectionHelp(error)
-    elements.badge.textContent = 'API no disponible'
+    if (widgetMode) appendChatMessage('assistant', `No se pudo conectar con la API: ${connectionHelp(error)}`)
+    else {
+      const state = document.createElement('section')
+      state.className = 'catalog-empty catalog-empty--error'
+      const title = document.createElement('strong')
+      title.textContent = 'API no disponible'
+      const detail = document.createElement('p')
+      detail.textContent = connectionHelp(error)
+      state.append(title, detail)
+      document.getElementById('store-app').replaceChildren(state)
+    }
   }
 }
 
@@ -298,7 +292,12 @@ function parsePreferences(value) {
 }
 
 function conversationalPayload(message) {
-  return { ...(conversationId ? { conversationId } : {}), freeText: message }
+  const context = pendingProductContext
+  pendingProductContext = null
+  return {
+    ...(conversationId ? { conversationId } : {}),
+    freeText: context ? `Estoy viendo ${context.name}${context.brand ? ` de ${context.brand}` : ''}. ${message}` : message,
+  }
 }
 function actionPayload(strategy, label, tryAlternative = false) {
   if (!conversationId || !lastBundleResponse) return null
@@ -385,9 +384,7 @@ function renderWhatsAppHandoff(data) {
   elements.thread.insertBefore(article, elements.typing)
 
   const count = data.cart?.items?.length ?? 0
-  elements.cart.querySelector('b').textContent = String(count)
-  elements.cart.setAttribute('aria-label', `Carrito Smart Bundle, ${count} producto${count === 1 ? '' : 's'}`)
-  elements.cart.title = 'Selección preparada para continuar por WhatsApp'
+  window.LenaldiStore?.setSelectionCount(count)
   scrollChat()
 }
 function scrollChat() { requestAnimationFrame(() => { elements.thread.scrollTop = elements.thread.scrollHeight }) }
@@ -566,10 +563,16 @@ if (widgetMode) {
   elements.drawer.removeAttribute('aria-modal')
   elements.close.hidden = true
 } else {
-  elements.searchForm.addEventListener('submit', (event) => { event.preventDefault(); loadProducts(elements.search.value.trim()) })
+  window.addEventListener('lenaldi:open-agent', (event) => {
+    const product = event.detail?.product
+    if (product) {
+      pendingProductContext = product
+      elements.chatInput.value = `Quiero una recomendación sobre ${product.name}`
+    }
+    openDrawer()
+  })
 }
 elements.launcher.addEventListener('click', openDrawer)
-elements.heroLauncher.addEventListener('click', openDrawer)
 elements.close.addEventListener('click', closeDrawer)
 elements.backdrop.addEventListener('click', closeDrawer)
 document.addEventListener('keydown', (event) => { if (!widgetMode && event.key === 'Escape' && !elements.drawer.hidden) closeDrawer() })

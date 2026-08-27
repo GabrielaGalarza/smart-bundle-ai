@@ -27,7 +27,7 @@ import {
   updateConversationState,
 } from './conversation.js'
 import catalogData from './data/catalog.json' with { type: 'json' }
-import { createWhatsAppHandoff, whatsappConfigured } from './whatsapp.js'
+import { configuredWhatsAppNumber, createWhatsAppHandoff, whatsappConfigured } from './whatsapp.js'
 
 export function loadCatalog(): Product[] {
   return catalogData as Product[]
@@ -188,6 +188,7 @@ export function buildApp(
       aiProvider: 'gemini',
       catalogProvider: catalogAdapter.provider,
       whatsappConfigured: whatsappConfigured(lenaldiWhatsAppNumber),
+      whatsappNumber: configuredWhatsAppNumber(lenaldiWhatsAppNumber),
     })
   })
 
