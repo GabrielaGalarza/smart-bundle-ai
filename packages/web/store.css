@@ -67,6 +67,7 @@ body { background:#fff; color:var(--store-black); font-family:var(--font); }
 .shop-card__actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:14px; }
 .shop-card__actions a,.shop-card__actions button { min-height:37px; display:grid; place-items:center; border:1px solid #bbb4a8; padding:5px; background:#fff; color:#24211c; font-size:.64rem; font-weight:700; text-align:center; text-decoration:none; }
 .shop-card__actions button { border-color:var(--store-black); background:var(--store-black); color:#fff; }
+.shop-card__actions>a:first-child { grid-column:1/-1; }
 .catalog-hero { padding:58px max(28px,calc((100% - 1264px)/2)); background:#f3f0e9; }
 .catalog-hero h1 { margin:0; font:700 clamp(2.3rem,5vw,4.2rem) "Playfair Display",serif; }
 .catalog-hero>p:last-child { color:#6d675e; font-size:.82rem; }
@@ -89,7 +90,7 @@ body { background:#fff; color:var(--store-black); font-family:var(--font); }
 .product-detail__copy { align-self:center; max-width:500px; }.product-detail__copy h1 { margin:0 0 18px; font:700 clamp(2.2rem,4vw,3.7rem)/1.04 "Playfair Display"; }
 .product-detail__price { display:block; font-size:1.55rem; }.product-detail__status { margin:17px 0; padding:13px 0; border-block:1px solid var(--store-line); color:#726c62; font-size:.73rem; }.product-detail__status small { display:block; margin-top:3px; }
 .product-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:22px 0; }.product-facts span { color:#8a8379; font-size:.6rem; text-transform:uppercase; }.product-facts strong { display:block; margin-top:4px; color:#29251f; font-size:.73rem; text-transform:none; }
-.buy-whatsapp,.ask-agent { width:100%; min-height:48px; border:1px solid var(--store-black); margin-top:9px; font-weight:700; }.buy-whatsapp { background:var(--store-black); color:#fff; }.ask-agent { background:#fff; color:var(--store-black); }
+.buy-whatsapp,.ask-agent { width:100%; min-height:48px; border:1px solid var(--store-black); margin-top:9px; font-weight:700; }.buy-whatsapp { display:grid; place-items:center; background:var(--store-black); color:#fff; text-decoration:none; }.ask-agent { background:#fff; color:var(--store-black); }
 .source-link { display:inline-block; margin-top:18px; color:#665a45; font-size:.7rem; }.product-accuracy { color:#888278; font-size:.62rem; line-height:1.5; }.related { border-top:1px solid var(--store-line); }
 .not-found { min-height:60vh; display:grid; place-content:center; justify-items:center; padding:50px; text-align:center; }.not-found span { color:var(--store-gold); font-size:.7rem; letter-spacing:.2em; }.not-found h1 { font:700 2.8rem "Playfair Display"; }.not-found p { color:var(--store-grey); }
 .lenaldi-footer { display:grid; grid-template-columns:2fr 1fr 1fr; gap:45px; padding:55px max(28px,calc((100% - 1264px)/2)); background:var(--store-black); color:#c5c0b7; font-size:.72rem; }

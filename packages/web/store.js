@@ -85,11 +85,12 @@
   }
 
   function productCard(product) {
+    const whatsappUrl = directWhatsAppUrl(product)
     return `<article class="shop-card">
       <a class="shop-card__media" href="${productPath(product)}" data-route>${imageMarkup(product)}</a>
       <div class="shop-card__body"><p>${escapeHtml(product.brand || 'Lenaldi')}</p><a class="shop-card__name" href="${productPath(product)}" data-route>${escapeHtml(product.name)}</a>
       <strong>${state.deps.priceFormatter.format(product.price)}</strong><span class="unknown-stock">Disponibilidad no informada</span>
-      <div class="shop-card__actions"><a href="${productPath(product)}" data-route>Ver producto</a><button type="button" data-agent-product="${escapeHtml(product.id)}" aria-label="Consultar ${escapeHtml(product.name)} al agente">Preguntar al agente</button></div></div>
+      <div class="shop-card__actions"><a href="${productPath(product)}" data-route>Ver producto</a>${whatsappUrl ? `<a href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noreferrer">Comprar por WhatsApp</a>` : ''}<button type="button" data-agent-product="${escapeHtml(product.id)}" aria-label="Consultar ${escapeHtml(product.name)} al agente">Preguntar al agente</button></div></div>
     </article>`
   }
   function productGrid(products) {
@@ -143,9 +144,10 @@
   function productView(id) {
     const product = state.products.find((item) => item.id === id)
     if (!product) { notFoundView(); return }
+    const whatsappUrl = directWhatsAppUrl(product)
     const related = state.products.filter((item) => item.id !== product.id && normalize(item.brand) === normalize(product.brand)).slice(0, 4)
     getApp().innerHTML = `<nav class="breadcrumbs" aria-label="Ruta"><a href="/" data-route>Inicio</a><span>/</span><a href="/productos" data-route>Productos</a><span>/</span><span>${escapeHtml(product.name)}</span></nav>
-      <article class="product-detail"><div class="product-detail__media">${imageMarkup(product)}</div><div class="product-detail__copy"><p class="shop-kicker">${escapeHtml(product.brand || 'Lenaldi')}</p><h1>${escapeHtml(product.name)}</h1><strong class="product-detail__price">${state.deps.priceFormatter.format(product.price)}</strong><p class="product-detail__status">Disponibilidad no informada <small>Consultá stock y talles directamente con Lenaldi.</small></p><div class="product-facts"><span>Marca<strong>${escapeHtml(product.brand || 'No informada')}</strong></span><span>Categoría<strong>Zapatillas</strong></span><span>Precio<strong>Publicado</strong></span></div><button class="buy-whatsapp" type="button" data-whatsapp-product="${escapeHtml(product.id)}">Comprar por WhatsApp</button><button class="ask-agent" type="button" data-agent-product="${escapeHtml(product.id)}">✦ Preguntarle al agente por este modelo</button>${product.productUrl ? `<a class="source-link" href="${escapeHtml(product.productUrl)}" target="_blank" rel="noreferrer">Ver publicación original ↗</a>` : ''}<p class="product-accuracy">No se inventan stock, talles ni promociones: estos datos deben confirmarse con la tienda.</p></div></article>
+      <article class="product-detail"><div class="product-detail__media">${imageMarkup(product)}</div><div class="product-detail__copy"><p class="shop-kicker">${escapeHtml(product.brand || 'Lenaldi')}</p><h1>${escapeHtml(product.name)}</h1><strong class="product-detail__price">${state.deps.priceFormatter.format(product.price)}</strong><p class="product-detail__status">Disponibilidad no informada <small>Consultá stock y talles directamente con Lenaldi.</small></p><div class="product-facts"><span>Marca<strong>${escapeHtml(product.brand || 'No informada')}</strong></span><span>Categoría<strong>Zapatillas</strong></span><span>Precio<strong>Publicado</strong></span></div>${whatsappUrl ? `<a class="buy-whatsapp" href="${escapeHtml(whatsappUrl)}" target="_blank" rel="noreferrer">Comprar por WhatsApp</a>` : '<button class="buy-whatsapp" type="button" data-agent-product="' + escapeHtml(product.id) + '">Consultar cómo comprar</button>'}<button class="ask-agent" type="button" data-agent-product="${escapeHtml(product.id)}">✦ Preguntarle al agente por este modelo</button>${product.productUrl ? `<a class="source-link" href="${escapeHtml(product.productUrl)}" target="_blank" rel="noreferrer">Ver publicación original ↗</a>` : ''}<p class="product-accuracy">No se inventan stock, talles ni promociones: estos datos deben confirmarse con la tienda.</p></div></article>
       ${related.length ? `<section class="store-section related"><div class="store-section__head"><div><p class="shop-kicker">También puede gustarte</p><h2>Más de ${escapeHtml(product.brand)}</h2></div></div>${productGrid(related)}</section>` : ''}`
     document.title = `${product.name} · Lenaldi`
     linkListeners(getApp())
