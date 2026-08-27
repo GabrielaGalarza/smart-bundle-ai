@@ -14,6 +14,8 @@ export interface Product {
   seller?: string
   availableQuantity?: number
   imageUrl?: string
+  /** Imágenes públicas adicionales del mismo producto, en orden de preferencia. */
+  imageUrls?: string[]
   productUrl?: string
   orderUrl?: string
   brand?: string
@@ -27,6 +29,9 @@ export type PurchaseStrategy =
   | 'balanced'
   | 'quality-first'
   | 'maximize-budget'
+
+export type PriceOrder = 'asc' | 'desc'
+export type SelectionSize = 'single' | 'multiple'
 
 export interface PriceIntent {
   budgetMax?: number
@@ -67,6 +72,10 @@ export interface BundleRequest {
   excludedTags?: string[]
   avoidedProducts?: string[]
   strategy?: PurchaseStrategy
+  /** Orden relativo pedido por el comprador; no implica una señal de calidad. */
+  priceOrder?: PriceOrder
+  /** Distingue “la más cara” de “las más caras” y pedidos de varias unidades. */
+  selectionSize?: SelectionSize
   priceIntent?: PriceIntent
 }
 
@@ -143,6 +152,8 @@ export interface ConversationState {
   requiredProducts?: string[]
   exclusions?: string[]
   strategy?: PurchaseStrategy
+  priceOrder?: PriceOrder
+  selectionSize?: SelectionSize
   lastRecommendationId?: string
   lastProducts?: string[]
   hardConstraints: string[]
@@ -159,4 +170,6 @@ export interface ParsedIntent {
   excludedTags: string[]
   avoidedProducts: string[]
   strategy: PurchaseStrategy | null
+  priceOrder?: PriceOrder
+  selectionSize?: SelectionSize
 }

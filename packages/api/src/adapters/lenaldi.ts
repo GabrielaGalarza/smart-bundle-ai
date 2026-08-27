@@ -125,8 +125,10 @@ export function normalizeLenaldiPage(html: string, page: LenaldiPage, pageUrl: s
   const products: Product[] = []
 
   for (const fragment of fragments) {
-    const imageTag = fragment.match(/<img\b[^>]*>/i)?.[0]
-    const imageUrl = imageTag ? attribute(imageTag, 'src') : undefined
+    const imageUrls = [...new Set((fragment.match(/<img\b[^>]*>/gi) ?? [])
+      .flatMap((tag) => [attribute(tag, 'src'), attribute(tag, 'data-src')])
+      .filter((value): value is string => Boolean(value)))]
+    const imageUrl = imageUrls[0]
     if (!imageUrl) continue
 
     const visibleBlocks = [...fragment.matchAll(/<(p|h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi)]
@@ -152,6 +154,7 @@ export function normalizeLenaldiPage(html: string, page: LenaldiPage, pageUrl: s
       inStock: undefined,
       tags: descriptiveTags(page.brand, rawName),
       imageUrl,
+      imageUrls,
       productUrl: pageUrl,
       orderUrl,
       source: 'lenaldi',
@@ -166,7 +169,17 @@ export function deduplicateLenaldiProducts(products: Product[]): Product[] {
   const unique = new Map<string, Product>()
   for (const product of products) {
     const key = `${normalizeSearchText(product.brand ?? '')}|${normalizeSearchText(product.name)}|${product.price}`
-    if (!unique.has(key)) unique.set(key, product)
+    const existing = unique.get(key)
+    if (!existing) {
+      unique.set(key, product)
+      continue
+    }
+    const imageUrls = [...new Set([
+      ...(existing.imageUrls ?? (existing.imageUrl ? [existing.imageUrl] : [])),
+      ...(product.imageUrls ?? (product.imageUrl ? [product.imageUrl] : [])),
+    ])]
+    existing.imageUrl = imageUrls[0]
+    existing.imageUrls = imageUrls
   }
   return [...unique.values()].sort((left, right) =>
     (left.brand ?? '').localeCompare(right.brand ?? '') ||
@@ -198,7 +211,11 @@ export class LenaldiCatalogAdapter implements CatalogAdapter {
 
   private result(products: Product[], request: CatalogRequest, cacheHit: boolean, fallbackReason?: string): CatalogResult {
     return {
-      products: products.map((product) => ({ ...product, tags: [...product.tags] })),
+      products: products.map((product) => ({
+        ...product,
+        tags: [...product.tags],
+        ...(product.imageUrls ? { imageUrls: [...product.imageUrls] } : {}),
+      })),
       provider: this.provider,
       source: 'lenaldi',
       label: LENALDI_CATALOG_LABEL,

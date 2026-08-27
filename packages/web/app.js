@@ -416,7 +416,13 @@ function renderBundleItem(item) {
   if (item.imageUrl) {
     const image = document.createElement('img')
     image.className = 'bundle-item-image'; image.src = catalogImageUrl(item); image.alt = ''; image.loading = 'lazy'
-    image.addEventListener('error', () => { image.hidden = true }, { once: true })
+    let imageIndex = 0
+    const imageUrls = item.imageUrls ?? [item.imageUrl]
+    image.addEventListener('error', () => {
+      imageIndex += 1
+      if (imageUrls[imageIndex]) image.src = catalogImageUrl({ ...item, imageUrl: imageUrls[imageIndex] })
+      else image.hidden = true
+    })
     row.appendChild(image)
   }
   const description = document.createElement('div')

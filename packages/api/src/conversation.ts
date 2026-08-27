@@ -3,9 +3,11 @@ import type {
   ConversationMessage,
   ConversationState,
   ParsedIntent,
+  PriceOrder,
   PriceIntent,
   Product,
   PurchaseStrategy,
+  SelectionSize,
 } from '@sba/core'
 
 export interface ConversationSession {
@@ -36,6 +38,8 @@ export interface ConversationStatePatch {
   preferredTags?: string[]
   exclusions?: string[]
   strategy?: PurchaseStrategy | null
+  priceOrder?: PriceOrder
+  selectionSize?: SelectionSize
   priceIntent?: PriceIntent
 }
 
@@ -77,7 +81,7 @@ function relativeBudget(message: string, current?: number): number | undefined {
 
 function contextualStrategy(message: string): PurchaseStrategy | undefined {
   const text = normalize(message)
-  if (/esta muy caro|algo mas barato|gastar menos|mas economico/.test(text)) return 'lowest-cost'
+  if (/esta muy caro|algo mas barato|gastar menos|mas economico|\bbarat[oa]s?\b/.test(text)) return 'lowest-cost'
   if (/una mejor|prioriza.*calidad|mejor calidad/.test(text)) return 'quality-first'
   if (/aprovecha.*presupuesto|usa.*presupuesto|gastar todo/.test(text)) return 'maximize-budget'
   return undefined
@@ -131,12 +135,31 @@ export function conversationAction(message: string): string | undefined {
   if (/\bno\s+(?:quiero\s+)?(?:la\s+)?de\b|\bno\s+esa\b|\bdescarta\b.*\banterior\b/.test(text)) {
     return 'recommendation-rejected'
   }
+  if (/\b(saca|quita|elimina|cambia|reemplaza)\b.*\b(primera|primer|segunda|segundo|tercera|tercero|ultima|ultimo|producto|zapatilla)\b/.test(text)) {
+    return 'recommendation-rejected'
+  }
   if (/\b(otra|otro)\b.*\b(opcion|alternativa|parecida|parecido|marca)?\b|\bdame (otra|otro)\b|\bla anterior\b/.test(text)) {
     return 'alternative-requested'
   }
   if (/esta muy caro|algo mas barato|gastar menos|mas economico/.test(text)) return 'lower-price-requested'
   if (/\b(mantene|mantener)\b/.test(text)) return 'preference-maintained'
   return undefined
+}
+
+/** Identifica qué elementos de la selección anterior pidió quitar el usuario. */
+export function rejectedProductIds(message: string, productIds: string[] = []): string[] {
+  if (productIds.length === 0) return []
+  const text = normalize(message)
+  const positions: Array<[RegExp, number]> = [
+    [/\b(primer|primera|primero)\b/, 0],
+    [/\b(segundo|segunda)\b/, 1],
+    [/\b(tercer|tercera|tercero)\b/, 2],
+  ]
+  for (const [pattern, index] of positions) {
+    if (pattern.test(text) && productIds[index]) return [productIds[index]]
+  }
+  if (/\b(ultimo|ultima)\b/.test(text)) return [productIds.at(-1)!]
+  return [productIds[0]]
 }
 
 export function updateConversationState(
@@ -192,7 +215,11 @@ export function updateConversationState(
     requiredProducts,
     exclusions,
     strategy: patch.strategy ?? parsed?.strategy ?? contextualStrategy(message) ?? current.strategy ?? 'balanced',
-    hardConstraints: current.hardConstraints,
+    priceOrder: patch.priceOrder ?? parsed?.priceOrder ?? current.priceOrder,
+    selectionSize: patch.selectionSize ?? parsed?.selectionSize ?? current.selectionSize,
+    hardConstraints: detectedBrand
+      ? unique([...withoutGroup(current.hardConstraints, BRANDS), `marca:${detectedBrand}`])
+      : asksOtherBrand ? withoutGroup(current.hardConstraints, BRANDS) : current.hardConstraints,
     softPreferences,
   }
 }

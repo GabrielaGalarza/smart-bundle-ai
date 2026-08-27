@@ -172,11 +172,26 @@ export function buildAgents(apiKey: string | undefined, options: GeminiClientOpt
     parser: geminiParser ?? stubParser,
     explainer: stubExplainer,
     parse: async (freeText: string, categories: string[]) => {
+      const deterministic = await stubParser.parse(freeText, categories)
       if (!geminiParser) {
-        return { intent: await stubParser.parse(freeText, categories), telemetry: rulesTelemetry(false, false) }
+        return { intent: deterministic, telemetry: rulesTelemetry(false, false) }
       }
       try {
-        const intent = await geminiParser.parse(freeText, categories)
+        const generated = await geminiParser.parse(freeText, categories)
+        const merge = (left: string[], right: string[]) => [...new Set([...left, ...right])]
+        const intent: ParsedIntent = {
+          ...generated,
+          category: deterministic.category ?? generated.category,
+          maxBudget: deterministic.maxBudget ?? generated.maxBudget,
+          preferences: merge(generated.preferences, deterministic.preferences),
+          requiredProducts: merge(generated.requiredProducts, deterministic.requiredProducts),
+          preferredTags: merge(generated.preferredTags, deterministic.preferredTags),
+          excludedTags: merge(generated.excludedTags, deterministic.excludedTags),
+          avoidedProducts: merge(generated.avoidedProducts, deterministic.avoidedProducts),
+          strategy: deterministic.strategy ?? generated.strategy,
+          priceOrder: deterministic.priceOrder ?? generated.priceOrder,
+          selectionSize: deterministic.selectionSize ?? generated.selectionSize,
+        }
         return {
           intent,
           telemetry: {
@@ -189,7 +204,7 @@ export function buildAgents(apiKey: string | undefined, options: GeminiClientOpt
         }
       } catch (error) {
         console.warn(`[Gemini] interpretación no disponible (${sanitizedFailure(error)}); usando fallback por reglas.`)
-        return { intent: await stubParser.parse(freeText, categories), telemetry: rulesTelemetry(true, true) }
+        return { intent: deterministic, telemetry: rulesTelemetry(true, true) }
       }
     },
     // La intención usa Gemini; la explicación se construye con datos del motor

@@ -10,7 +10,6 @@ import type {
 } from '../types.js'
 import { byCategory, normalizeSearchText } from '../catalog.js'
 import { DEFAULT_COMPLEMENTARITY_RULES, productMatchesNeed, type ComplementarityRule } from './complementarity.js'
-import { buildBundle } from './knapsack.js'
 import { productMatchesSlot, resolveNeedSlots } from './needs.js'
 import { evaluateBundlePricing } from './policies.js'
 
@@ -175,21 +174,42 @@ function openCategoryBundle(
   policy?: CommercialPolicy,
 ): DecisionCandidate {
   const strategy = request.strategy ?? 'balanced'
+  const available = [...products].filter((product) =>
+    product.inStock !== false && product.price > 0 && product.price <= request.maxBudget)
+  const preference = (product: Product) =>
+    preferenceScore(product, preferredTags, economicThreshold) + (product.decisionSignals?.valueScore ?? 0)
+  const takeInBudget = (ranked: Product[], maximum = Number.POSITIVE_INFINITY): Product[] => {
+    const selected: Product[] = []
+    let total = 0
+    for (const product of ranked) {
+      if (selected.length >= maximum) break
+      if (money(total + product.price) > request.maxBudget) continue
+      selected.push(product)
+      total = money(total + product.price)
+    }
+    return selected
+  }
   let items: Product[]
-  if (strategy === 'lowest-cost') {
-    items = [...products].filter((product) => product.inStock !== false && product.price > 0)
-      .sort((left, right) => left.price - right.price || left.id.localeCompare(right.id)).slice(0, 1)
-  } else if (strategy === 'quality-first' && products.some((product) => product.decisionSignals?.qualityScore != null)) {
-    items = [...products].filter((product) => product.inStock !== false && product.price > 0 && product.price <= request.maxBudget)
+  if (request.priceOrder) {
+    const direction = request.priceOrder === 'asc' ? 1 : -1
+    const ranked = available.sort((left, right) =>
+      direction * (left.price - right.price) || left.id.localeCompare(right.id))
+    items = takeInBudget(ranked, request.selectionSize === 'multiple' ? 5 : 1)
+  } else if (strategy === 'lowest-cost') {
+    const ranked = available.sort((left, right) => left.price - right.price || left.id.localeCompare(right.id))
+    items = takeInBudget(ranked, request.selectionSize === 'multiple' ? 5 : 1)
+  } else if (strategy === 'quality-first' && available.some((product) => product.decisionSignals?.qualityScore != null)) {
+    items = available
       .sort((left, right) =>
         (right.decisionSignals?.qualityScore ?? 0) - (left.decisionSignals?.qualityScore ?? 0) ||
         left.id.localeCompare(right.id),
       ).slice(0, 1)
   } else {
-    items = buildBundle(products, request.maxBudget, (product) => ({
-      preference: preferenceScore(product, preferredTags, economicThreshold) + (product.decisionSignals?.valueScore ?? 0),
-      complementarity: 0,
-    })).items
+    const ranked = available.sort((left, right) =>
+      preference(right) - preference(left) ||
+      right.price - left.price ||
+      left.id.localeCompare(right.id))
+    items = takeInBudget(ranked)
   }
   const evaluated = evaluateBundlePricing(items, request.maxBudget, policy)
   return {
@@ -201,7 +221,8 @@ function openCategoryBundle(
     requiredCount: 0,
     complementPriority: 0,
     complementCount: 0,
-    strategyScore: strategyScore(strategy, items, evaluated.pricing.finalTotal, true),
+    strategyScore: strategyScore(strategy, items, evaluated.pricing.finalTotal,
+      available.some((product) => product.decisionSignals?.qualityScore != null)),
     preferenceScore: 0,
     promotionScore: money(evaluated.pricing.ecommercePromotionSavings + evaluated.pricing.smartBundleDemoBenefit),
     utilityScore: 0,
@@ -252,7 +273,12 @@ export function composeBundle(
   const sortedPrices = eligible.filter((product) => product.inStock !== false && product.price > 0)
     .map((product) => product.price).sort((left, right) => left - right)
   const economicThreshold = sortedPrices[Math.floor((sortedPrices.length - 1) / 2)] ?? 0
-  const needSlots = resolveNeedSlots(request.category, requiredProducts, rules)
+  const normalizedCategory = normalizeSearchText(request.category)
+  const genericCategoryRequest = requiredProducts.length > 0 && requiredProducts.every((required) => {
+    const normalized = normalizeSearchText(required)
+    return normalized === normalizedCategory || normalized === normalizedCategory.replace(/s$/, '')
+  })
+  const needSlots = genericCategoryRequest ? [] : resolveNeedSlots(request.category, requiredProducts, rules)
   const decision = needSlots.length
     ? optimizeNeedSlots(eligible, needSlots, request, preferredTags, economicThreshold, policy)
     : openCategoryBundle(eligible, request, preferredTags, economicThreshold, policy)

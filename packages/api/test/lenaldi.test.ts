@@ -36,6 +36,7 @@ describe('normalización Lenaldi', () => {
       orderUrl: 'https://wa.me/message/DEMO123',
     })
     expect(products[0].imageUrl).toMatch(/^https:\/\/images\.example\.test\//)
+    expect(products[0].imageUrls).toContain(products[0].imageUrl)
     expect(products[0].inStock).toBeUndefined()
     expect(products[0].skuId).toBeUndefined()
     expect(products[0].decisionSignals).toBeUndefined()

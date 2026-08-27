@@ -8,10 +8,12 @@ import express, {
 import { fileURLToPath } from 'node:url'
 import {
   composeBundle,
+  detectUnsupportedProductRequest,
   DEMO_COMMERCIAL_POLICY,
   DEFAULT_COMPLEMENTARITY_RULES,
   findClosestPriceCandidates,
   matchByKeyword,
+  normalizeSearchText,
   productMatchesNeed,
   resolveNeedSlots,
   type BundleRequest,
@@ -24,6 +26,7 @@ import { LocalCatalogAdapter, type CatalogAdapter } from './adapters/catalog.js'
 import {
   conversationAction,
   InMemoryConversationStore,
+  rejectedProductIds,
   updateConversationState,
 } from './conversation.js'
 import catalogData from './data/catalog.json' with { type: 'json' }
@@ -228,35 +231,44 @@ export function buildApp(
     }
 
     try {
-      const optimizedImageUrl = new URL(request.imageUrl)
-      optimizedImageUrl.pathname = optimizedImageUrl.pathname.replace(/=w\d+$/, '=w480')
-      const response = await fetch(optimizedImageUrl, {
-        headers: {
-          Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-          Referer: request.pageUrl.toString(),
-          'User-Agent': 'Mozilla/5.0 (compatible; SmartBundleAI/1.0)',
-        },
-        signal: AbortSignal.timeout(10_000),
-      })
-      const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() ?? ''
-      const advertisedLength = Number(response.headers.get('content-length') ?? 0)
-      if (!response.ok || !contentType.startsWith('image/') || advertisedLength > MAX_CATALOG_IMAGE_BYTES) {
-        res.status(502).json({ error: 'Imagen del catálogo no disponible' })
-        return
+      const imageCandidates = ['=w480', '=w800', request.imageUrl.pathname.match(/=w\d+$/)?.[0]]
+        .filter((suffix): suffix is string => Boolean(suffix))
+        .map((suffix) => {
+          const candidate = new URL(request.imageUrl)
+          candidate.pathname = candidate.pathname.replace(/=w\d+$/, suffix)
+          return candidate.toString()
+        })
+      let loaded: { body: Buffer, contentType: string } | undefined
+      for (const candidate of [...new Set(imageCandidates)]) {
+        const response = await fetch(candidate, {
+          headers: {
+            Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+            Referer: request.pageUrl.toString(),
+            'User-Agent': 'Mozilla/5.0 (compatible; SmartBundleAI/1.0)',
+          },
+          signal: AbortSignal.timeout(10_000),
+        })
+        const contentType = response.headers.get('content-type')?.split(';')[0]?.trim() ?? ''
+        const advertisedLength = Number(response.headers.get('content-length') ?? 0)
+        if (!response.ok || !contentType.startsWith('image/') || advertisedLength > MAX_CATALOG_IMAGE_BYTES) continue
+        const body = Buffer.from(await response.arrayBuffer())
+        if (body.byteLength <= MAX_CATALOG_IMAGE_BYTES) {
+          loaded = { body, contentType }
+          break
+        }
       }
-      const body = Buffer.from(await response.arrayBuffer())
-      if (body.byteLength > MAX_CATALOG_IMAGE_BYTES) {
-        res.status(502).json({ error: 'Imagen del catálogo demasiado grande' })
+      if (!loaded) {
+        res.status(502).json({ error: 'Imagen del catálogo no disponible' })
         return
       }
       if (catalogImageCache.size >= MAX_CACHED_CATALOG_IMAGES) {
         const oldestKey = catalogImageCache.keys().next().value as string | undefined
         if (oldestKey) catalogImageCache.delete(oldestKey)
       }
-      catalogImageCache.set(cacheKey, { body, contentType })
-      res.setHeader('Content-Type', contentType)
+      catalogImageCache.set(cacheKey, loaded)
+      res.setHeader('Content-Type', loaded.contentType)
       res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800')
-      res.send(body)
+      res.send(loaded.body)
     } catch (error) {
       console.warn('[Catálogo] Imagen de Lenaldi no disponible', error instanceof Error ? error.message : 'error desconocido')
       res.status(502).json({ error: 'Imagen del catálogo no disponible' })
@@ -357,6 +369,31 @@ export function buildApp(
       })
       return
     }
+    const unsupportedProduct = freeText ? detectUnsupportedProductRequest(freeText) : undefined
+    if (unsupportedProduct) {
+      conversations.append(session, 'user', freeText, { action: 'unsupported-category' })
+      const explanation = `Actualmente Lenaldi tiene publicado un catálogo de zapatillas. No encontré ${unsupportedProduct} disponibles en esta tienda. Si querés, puedo ayudarte a buscar zapatillas según tu presupuesto, marca o estilo.`
+      conversations.append(session, 'assistant', explanation, { action: 'unsupported-category' })
+      const budget = session.state.budget ?? 0
+      res.json({
+        conversationId: session.state.conversationId,
+        conversation: { state: session.state, messages: session.messages },
+        request: {
+          category: 'zapatillas', maxBudget: budget, preferences: [], requiredProducts: [],
+          preferredTags: [], excludedTags: [], avoidedProducts: [], strategy: 'balanced',
+        },
+        bundle: { items: [], substitutions: [], totalPrice: 0, leftoverBudget: budget, strategy: 'balanced' },
+        explanation,
+        unsupportedCategory: { requested: unsupportedProduct, available: ['zapatillas'] },
+        usedAI: false,
+        geminiConfigured: agents.geminiConfigured,
+        providerAttempted: false,
+        providerSucceeded: false,
+        fallbackUsed: false,
+        intentSource: 'rules',
+      })
+      return
+    }
     const explicitCategory = typeof body.category === 'string' ? body.category : null
     const explicitBudget = typeof body.maxBudget === 'number' ? body.maxBudget : null
     const legacyPreferences = stringList(body.preferences)
@@ -400,8 +437,13 @@ export function buildApp(
     const preferredTags = session.state.softPreferences
     const excludedTags = session.state.exclusions ?? []
     const strategy = session.state.strategy ?? 'balanced'
-    if ((action === 'alternative-requested' || action === 'recommendation-rejected') && session.state.lastProducts?.[0]) {
-      avoidedProducts = [...new Set([...avoidedProducts, session.state.lastProducts[0]])]
+    const priceOrder = session.state.priceOrder
+    const selectionSize = session.state.selectionSize
+    if (action === 'alternative-requested' || action === 'recommendation-rejected') {
+      avoidedProducts = [...new Set([
+        ...avoidedProducts,
+        ...rejectedProductIds(freeText, session.state.lastProducts),
+      ])]
     }
 
     if (!category || !categories.includes(category)) {
@@ -412,7 +454,7 @@ export function buildApp(
       return
     }
     const targetPrice = session.state.priceIntent?.targetPrice
-    if ((!maxBudget || maxBudget <= 0 || !Number.isFinite(maxBudget)) && !targetPrice) {
+    if ((!maxBudget || maxBudget <= 0 || !Number.isFinite(maxBudget)) && !targetPrice && !priceOrder) {
       res.status(400).json({ error: 'presupuesto o precio objetivo invalido o faltante', conversationId: session.state.conversationId })
       return
     }
@@ -429,26 +471,48 @@ export function buildApp(
       requiredProducts,
       searchTerms: [...new Set([...requiredProducts, ...complementarySearchTerms])],
     })
+    const categoryProducts = catalog.products.filter((product) => product.category === category)
+    const requestedBrand = session.state.brand
+    const brandProducts = requestedBrand
+      ? categoryProducts.filter((product) =>
+        normalizeSearchText(product.brand ?? '') === normalizeSearchText(requestedBrand) ||
+        productMatchesNeed(product, requestedBrand))
+      : categoryProducts
+    const brandLabel = brandProducts[0]?.brand ?? requestedBrand
+    const validBrandProducts = brandProducts.filter((product) =>
+      product.inStock !== false && product.price > 0 &&
+      !avoidedProducts.some((term) => product.id === term || productMatchesNeed(product, term)) &&
+      !excludedTags.some((term) => productMatchesNeed(product, term)))
+    const rankedForRelativePrice = [...validBrandProducts].sort((left, right) =>
+      priceOrder === 'desc'
+        ? right.price - left.price || left.id.localeCompare(right.id)
+        : left.price - right.price || left.id.localeCompare(right.id))
+    const relativeSelection = rankedForRelativePrice.slice(0, selectionSize === 'multiple' ? 5 : 1)
+    const relativeBudget = relativeSelection.reduce((sum, product) => sum + product.price, 0)
     let priceSearch: ReturnType<typeof findClosestPriceCandidates> | undefined
     let commercialResponse: ReturnType<typeof commercialPriceResponse> | undefined
     let selectedForTarget: Product | undefined
     if (targetPrice) {
       const excludedIds = new Set(avoidedProducts)
-      const eligible = catalog.products.filter((product) =>
-        product.category === category &&
+      const eligibleGlobal = categoryProducts.filter((product) =>
         product.inStock !== false &&
         !excludedIds.has(product.id) &&
         !excludedTags.some((term) => productMatchesNeed(product, term)))
+      const eligible = requestedBrand
+        ? eligibleGlobal.filter((product) =>
+          normalizeSearchText(product.brand ?? '') === normalizeSearchText(requestedBrand) ||
+          productMatchesNeed(product, requestedBrand))
+        : eligibleGlobal
       const preferredPool = preferredPricePool(eligible, preferredTags)
       priceSearch = findClosestPriceCandidates(preferredPool, targetPrice, { maxResults: 6 })
-      const globalPriceSearch = findClosestPriceCandidates(eligible, targetPrice, { maxResults: 6 })
+      const globalPriceSearch = findClosestPriceCandidates(eligibleGlobal, targetPrice, { maxResults: 6 })
       commercialResponse = commercialPriceResponse(targetPrice, priceSearch, globalPriceSearch)
       selectedForTarget = maxBudget
         ? priceSearch.candidates.find((candidate) => candidate.price <= maxBudget)?.product
         : priceSearch.candidates[0]?.product
     }
 
-    const effectiveMaxBudget = maxBudget ?? selectedForTarget?.price ?? targetPrice ?? 0
+    const effectiveMaxBudget = maxBudget ?? selectedForTarget?.price ?? targetPrice ?? relativeBudget
     const request: BundleRequest = {
       category,
       maxBudget: effectiveMaxBudget,
@@ -458,12 +522,32 @@ export function buildApp(
       excludedTags,
       avoidedProducts,
       strategy,
+      priceOrder,
+      selectionSize,
       priceIntent: session.state.priceIntent,
     }
-    const bundle = targetPrice
+    const affordableBrandProducts = validBrandProducts.filter((product) => product.price <= effectiveMaxBudget)
+    const noExactBrandMatch = Boolean(requestedBrand) && affordableBrandProducts.length === 0
+    const bundle = noExactBrandMatch
+      ? composeBundle([], request, [], DEMO_COMMERCIAL_POLICY)
+      : targetPrice
       ? composeBundle(selectedForTarget ? [selectedForTarget] : [], request, [], DEMO_COMMERCIAL_POLICY)
-      : composeBundle(catalog.products, request, DEFAULT_COMPLEMENTARITY_RULES, DEMO_COMMERCIAL_POLICY)
-    const explained = commercialResponse
+      : composeBundle(brandProducts, request, DEFAULT_COMPLEMENTARITY_RULES, DEMO_COMMERCIAL_POLICY)
+    const cheapestRequestedBrand = [...validBrandProducts].sort((left, right) => left.price - right.price)[0]
+    const alternativeBrands = categoryProducts.filter((product) =>
+      product.inStock !== false && product.price > 0 && product.price <= effectiveMaxBudget &&
+      (!requestedBrand || normalizeSearchText(product.brand ?? '') !== normalizeSearchText(requestedBrand)))
+      .sort((left, right) => left.price - right.price || left.id.localeCompare(right.id))
+      .slice(0, 3)
+    const noExactMessage = noExactBrandMatch
+      ? (commercialResponse?.message ? `${commercialResponse.message} ` : '') +
+        `No encontré zapatillas ${brandLabel ?? requestedBrand} que cumplan con lo que pediste${maxBudget ? ` por menos de ${ars(maxBudget)}` : ''} en el catálogo actual de Lenaldi.` +
+        (cheapestRequestedBrand ? ` La ${brandLabel ?? requestedBrand} más económica disponible cuesta ${ars(cheapestRequestedBrand.price)}.` : '') +
+        (alternativeBrands.length ? ' Si querés flexibilizar la marca, puedo mostrarte alternativas dentro de tu presupuesto.' : '')
+      : undefined
+    const explained = noExactMessage
+      ? { text: noExactMessage, usedAI: false }
+      : commercialResponse
       ? { text: commercialResponse.message, usedAI: false }
       : await agents.explain(bundle, request)
     const recommendationId = conversations.recommendationId()
@@ -496,6 +580,14 @@ export function buildApp(
       commercialResponse,
       catalog: catalogMetadata(catalog),
       explanation: explained.text,
+      ...(noExactBrandMatch ? {
+        noExactMatch: {
+          type: 'brand-budget',
+          brand: brandLabel ?? requestedBrand,
+          cheapestExact: cheapestRequestedBrand,
+          alternatives: alternativeBrands,
+        },
+      } : {}),
       usedAI: providerTelemetry.intentSource === 'gemini',
       geminiConfigured: providerTelemetry.geminiConfigured,
       providerAttempted: providerTelemetry.providerAttempted,

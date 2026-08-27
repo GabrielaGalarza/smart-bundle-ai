@@ -101,6 +101,26 @@ describe('StubIntentParser', () => {
     const intent = await parser.parse('Busco Nike negras talle 38', [...categories, 'zapatillas'])
     expect(intent.maxBudget).toBeNull()
   })
+
+  it.each([
+    ['Tengo 50 mil', 50000],
+    ['Quiero gastar 600 mil en zapatillas', 600000],
+    ['Tengo $80.000', 80000],
+    ['Tengo 100k', 100000],
+    ['Cuento con 50 lucas', 50000],
+    ['Tengo medio millón', 500000],
+    ['Quiero gastar 150 k', 150000],
+  ])('normaliza presupuesto argentino: %s', async (message, expected) => {
+    const intent = await parser.parse(message, [...categories, 'zapatillas'])
+    expect(intent.maxBudget).toBe(expected)
+  })
+
+  it('distingue rankings de precio de una señal de calidad', async () => {
+    await expect(parser.parse('mostrame las zapatillas más caras', [...categories, 'zapatillas']))
+      .resolves.toMatchObject({ priceOrder: 'desc', selectionSize: 'multiple' })
+    await expect(parser.parse('quiero la Puma más barata', [...categories, 'zapatillas']))
+      .resolves.toMatchObject({ priceOrder: 'asc', selectionSize: 'single', strategy: 'lowest-cost' })
+  })
 })
 
 describe('StubExplainer', () => {

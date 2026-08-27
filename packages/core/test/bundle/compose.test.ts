@@ -41,4 +41,36 @@ describe('composeBundle', () => {
     const bundle = composeBundle(catalog, 'limpieza', 10000)
     expect(bundle.substitutions).toEqual([])
   })
+
+  it('arma una selección múltiple sin repetir productos ni superar un presupuesto alto', () => {
+    const shoes = [
+      p('nike-a', 'zapatillas', 78000, true, ['zapatillas', 'nike']),
+      p('nike-b', 'zapatillas', 92000, true, ['zapatillas', 'nike']),
+      p('nike-c', 'zapatillas', 105000, true, ['zapatillas', 'nike']),
+      p('nike-d', 'zapatillas', 110000, true, ['zapatillas', 'nike']),
+      p('nike-e', 'zapatillas', 125000, true, ['zapatillas', 'nike']),
+    ]
+    const bundle = composeBundle(shoes, {
+      category: 'zapatillas', maxBudget: 600000, preferences: ['zapatillas'],
+      requiredProducts: ['zapatillas'], preferredTags: ['nike'], strategy: 'maximize-budget',
+      selectionSize: 'multiple',
+    }, [])
+    expect(bundle.items.length).toBeGreaterThan(1)
+    expect(new Set(bundle.items.map((product) => product.id)).size).toBe(bundle.items.length)
+    expect(bundle.totalPrice).toBeLessThanOrEqual(600000)
+  })
+
+  it('ordena selecciones relativas por precio ascendente o descendente', () => {
+    const shoes = [p('a', 'zapatillas', 50000), p('b', 'zapatillas', 70000), p('c', 'zapatillas', 90000)]
+    const cheapest = composeBundle(shoes, {
+      category: 'zapatillas', maxBudget: 210000, preferences: ['zapatillas'], requiredProducts: ['zapatillas'],
+      strategy: 'lowest-cost', priceOrder: 'asc', selectionSize: 'multiple',
+    }, [])
+    const expensive = composeBundle(shoes, {
+      category: 'zapatillas', maxBudget: 210000, preferences: ['zapatillas'], requiredProducts: ['zapatillas'],
+      strategy: 'balanced', priceOrder: 'desc', selectionSize: 'multiple',
+    }, [])
+    expect(cheapest.items.map((product) => product.price)).toEqual([50000, 70000, 90000])
+    expect(expensive.items.map((product) => product.price)).toEqual([90000, 70000, 50000])
+  })
 })

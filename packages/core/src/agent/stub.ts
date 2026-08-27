@@ -13,29 +13,50 @@ const FOOTWEAR_COLORS = [
 const FOOTWEAR_STYLES = ['casual', 'urbano', 'urbana', 'deportivo', 'deportiva', 'running', 'retro', 'clasico', 'clasica', 'skate']
 const unique = (values: string[]): string[] => [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 
-function parseLocalizedAmount(value: string): number | null {
+export function parseLocalizedAmount(value: string, unit = ''): number | null {
   const compact = value.replace(/\s/g, '')
   const normalized = compact.includes(',')
     ? compact.replace(/\./g, '').replace(',', '.')
     : compact.replace(/\./g, '')
   const amount = Number(normalized)
-  return Number.isFinite(amount) && amount > 0 ? amount : null
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  const normalizedUnit = normalize(unit)
+  const multiplier = /^(mil|k|luca|lucas)$/.test(normalizedUnit)
+    ? 1_000
+    : /^millon(?:es)?$/.test(normalizedUnit) ? 1_000_000 : 1
+  return amount * multiplier
 }
 
-function extractBudget(text: string): number | null {
-  const amount = String.raw`(\d[\d.\s]*(?:,\d{1,2})?)`
+export function extractBudget(text: string): number | null {
+  if (/\bmedio\s+millon\b/.test(text)) return 500_000
+  const amount = String.raw`(?<amount>\d[\d.\s]*(?:,\d{1,2})?)\s*(?<unit>millones?|mil|k|lucas?)?`
   const patterns = [
     new RegExp(String.raw`\$\s*${amount}`),
-    new RegExp(String.raw`\b(?:presupuesto(?:\s+(?:de|es))?|hasta|puedo\s+gastar|quiero\s+gastar|gastar)\D{0,20}${amount}\s*(?:pesos)?\b`),
-    new RegExp(String.raw`\b${amount}\s*pesos\b`),
+    new RegExp(String.raw`\b(?:presupuesto(?:\s+(?:de|es))?|hasta|tengo|cuento\s+con|dispongo\s+de|puedo\s+gastar|quiero\s+gastar|gastar)\D{0,24}${amount}\s*(?:pesos)?\b`),
+    new RegExp(String.raw`\b${amount}\s*(?:pesos)\b`),
+    new RegExp(String.raw`\b${amount.replace('(?<unit>millones?|mil|k|lucas?)?', '(?<unit>millones?|mil|k|lucas?)')}\b`),
+    new RegExp(String.raw`^\s*${amount}\s*$`),
   ]
 
   for (const pattern of patterns) {
     const match = text.match(pattern)
-    const parsed = match?.[1] ? parseLocalizedAmount(match[1]) : null
+    const parsed = match?.groups?.amount
+      ? parseLocalizedAmount(match.groups.amount, match.groups.unit)
+      : null
     if (parsed != null) return parsed
   }
   return null
+}
+
+const UNSUPPORTED_PRODUCT_TERMS = [
+  'remera', 'remeras', 'pantalon', 'pantalones', 'campera', 'camperas',
+  'celular', 'celulares', 'notebook', 'notebooks', 'perfume', 'perfumes',
+]
+
+/** Detecta pedidos que no pertenecen al catálogo de calzado sin inventar sustituciones. */
+export function detectUnsupportedProductRequest(value: string): string | undefined {
+  const text = normalize(value)
+  return UNSUPPORTED_PRODUCT_TERMS.find((term) => new RegExp(`\\b${term}\\b`).test(text))
 }
 
 const cleanPhrase = (value: string): string => value
@@ -90,11 +111,20 @@ export class StubIntentParser implements IntentParser {
       requiredProducts = ['zapatillas']
       preferredTags = unique([...preferredTags, ...brandPreferences, ...colorPreferences, ...stylePreferences, ...usePreferences])
     }
+    const priceOrder = /\b(?:mas\s+)?(?:barata|barato|baratas|baratos|economica|economico|economicas|economicos)\b/.test(text)
+      ? 'asc' as const
+      : /\b(?:mas\s+)?(?:cara|caro|caras|caros)|\bpremium\b/.test(text) ? 'desc' as const : undefined
+    const explicitlySingle = /\b(?:la|una)\s+(?:[a-z]+\s+){0,3}(?:mas\s+)?(?:barata|barato|cara|caro)\b|\bun\s+par\b/.test(text)
+    const explicitlyMultiple = /\b(varias|varios|seleccion|coleccion)\b|\b(?:mas\s+)?(?:baratas|baratos|caras|caros)\b/.test(text)
+    const selectionSize = explicitlySingle
+      ? 'single' as const
+      : explicitlyMultiple || (Boolean(maxBudget) && category === footwearCategory) ? 'multiple' as const : undefined
     const strategy = /(?:priorizar|priorizo|prefiero)\s+(?:la\s+)?calidad|mayor calidad/.test(text)
       ? 'quality-first'
-      : /aprovechar(?: al maximo)?|usar todo|gastar todo/.test(text)
+      : /aprovechar(?: al maximo)?|usar todo|gastar todo|armame varias|comprar varias/.test(text) ||
+          (selectionSize === 'multiple' && Boolean(maxBudget))
         ? 'maximize-budget'
-        : /gastar lo menos|menor costo|mas barato|economico/.test(text)
+        : priceOrder === 'asc' || /gastar lo menos|menor costo/.test(text)
           ? 'lowest-cost'
           : null
 
@@ -107,6 +137,8 @@ export class StubIntentParser implements IntentParser {
       excludedTags,
       avoidedProducts,
       strategy,
+      ...(priceOrder ? { priceOrder } : {}),
+      ...(selectionSize ? { selectionSize } : {}),
     }
   }
 }

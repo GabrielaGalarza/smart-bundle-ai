@@ -6,7 +6,7 @@
   const normalize = (value = '') => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const productPath = (product) => `/producto/${encodeURIComponent(product.id)}`
   const imageMarkup = (product, className = '') => product.imageUrl
-    ? `<img class="${className}" src="${escapeHtml(state.deps.catalogImageUrl(product))}" alt="${escapeHtml(product.name)}" loading="lazy">`
+    ? `<img class="${className}" src="${escapeHtml(state.deps.catalogImageUrl(product))}" data-product-id="${escapeHtml(product.id)}" data-image-index="0" alt="${escapeHtml(product.name)}" loading="lazy">`
     : `<span class="product-image-fallback" aria-hidden="true">L</span>`
   const sourceText = () => state.source?.source === 'lenaldi'
     ? 'Catálogo Lenaldi · datos públicos del sitio'
@@ -186,6 +186,14 @@
   })
   document.addEventListener('error', (event) => {
     if (!(event.target instanceof HTMLImageElement) || !event.target.closest('#store-app')) return
+    const product = state.products.find((candidate) => candidate.id === event.target.dataset.productId)
+    const alternatives = product?.imageUrls ?? (product?.imageUrl ? [product.imageUrl] : [])
+    const nextIndex = Number(event.target.dataset.imageIndex ?? 0) + 1
+    if (product && alternatives[nextIndex]) {
+      event.target.dataset.imageIndex = String(nextIndex)
+      event.target.src = state.deps.catalogImageUrl({ ...product, imageUrl: alternatives[nextIndex] })
+      return
+    }
     const fallback = document.createElement('span')
     fallback.className = 'product-image-fallback'
     fallback.textContent = 'L'

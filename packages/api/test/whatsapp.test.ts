@@ -42,6 +42,20 @@ describe('handoff comercial a WhatsApp', () => {
     expect(handoff?.message).not.toMatch(/stock|talle|descuento|disponible/i)
   })
 
+  it('incluye nombre y precio de cada producto cuando la selección es múltiple', () => {
+    const products = [product, {
+      ...product, id: 'nike-dunk', name: 'Nike DUNK PANDA', price: 85000,
+    }, {
+      ...product, id: 'nike-cortez', name: 'Nike CORTEZ', price: 73000,
+    }]
+    const handoff = createWhatsAppHandoff('5491178236492', 'SBA-R-MULTI', products)
+    expect(handoff?.message).toContain('Nike AIR FORCE LILA — $79.000')
+    expect(handoff?.message).toContain('Nike DUNK PANDA — $85.000')
+    expect(handoff?.message).toContain('Nike CORTEZ — $73.000')
+    expect(handoff?.message).toContain('Total observado: $237.000')
+    expect(handoff?.message).toContain('SBA-R-MULTI')
+  })
+
   it('acepta la recomendación, prepara el carrito y registra la trazabilidad completa', async () => {
     const recommendationResponse = await fetch(`${baseUrl}/bundle`, {
       method: 'POST',

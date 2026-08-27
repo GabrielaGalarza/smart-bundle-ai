@@ -31,7 +31,7 @@ export function createWhatsAppHandoff(
   const total = products.reduce((sum, product) => sum + product.price, 0)
   const message = products.length === 1
     ? `Hola, vengo desde Smart Bundle AI. Me interesa esta recomendación: ${products[0].name}, precio publicado ${formatArs(products[0].price)}. Recommendation ID: ${recommendationId}. ¿Me ayudan a continuar la compra?`
-    : `Hola, vengo desde Smart Bundle AI. Quiero consultar por este bundle: ${products.map((product) => product.name).join(', ')}. Total observado: ${formatArs(total)}. Recommendation ID: ${recommendationId}.`
+    : `Hola, quiero continuar con esta selección recomendada por Smart Bundle AI:\n${products.map((product) => `• ${product.name} — ${formatArs(product.price)}`).join('\n')}\nTotal observado: ${formatArs(total)}.\nRecommendation ID: ${recommendationId}.`
   const target = new URL(`https://wa.me/${number}`)
   target.searchParams.set('text', message)
 
